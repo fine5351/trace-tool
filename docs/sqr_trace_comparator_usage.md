@@ -1,120 +1,92 @@
-# SQR Trace Comparator Usage Guide
+# Oracle PeopleSoft SQR 跟蹤比較器使用指南
 
-## Overview
+本文檔提供了使用新的Oracle PeopleSoft SQR跟蹤比較器工具的說明。
 
-The SQR Trace Comparator is a tool for analyzing and comparing SQR (Structured Query Report) trace files from different environments. It helps identify performance differences, SQL execution plan changes, and other variations that might affect the behavior of SQR programs.
+## 概述
 
-## Features
+SQR跟蹤比較器是一個用於比較兩個Oracle PeopleSoft SQR跟蹤文件之間執行時間的工具。它可以識別：
 
-- **Automatic Format Detection**: Automatically detects the trace format based on the content of the trace file
-- **Multiple Format Support**: Handles different trace parameter formats:
-  - Standard format: Basic trace information
-  - Detailed SQL format: Includes SQL execution plans and statistics (-S parameter)
-  - Detailed Time format: Includes detailed timing information (-RT parameter)
-  - Detailed Result format: Includes result set information (-RS parameter)
-- **Comprehensive Comparison**: Compares execution times, method calls, SQL calls, and additional metadata
-- **Detailed Reporting**: Generates both summary CSV and detailed Markdown reports
-- **Alert Flagging**: Automatically flags significant performance differences
+- 執行時間差異超過指定閾值的行
+- 存在於一個文件但不存在於另一個文件的代碼
+- 跟蹤文件之間的其他差異
 
-## Usage
+## 功能
 
-### Command Line
+- 在main方法中設定兩個文件路徑
+- 處理具有相同跟蹤參數的跟蹤文件
+- 分析每行數據並封裝在DTO中
+- 查找執行時間差異超過n倍的行（n是可變的）
+- 處理一個文件有而另一個文件沒有的代碼的情況
+- 將差異輸出到文件
+
+## 使用方法
+
+### 程式碼使用
+
+您可以在代碼中直接使用`NewSQRTraceComparator`類：
+
+```java
+import com.example.core.tool.NewSQRTraceComparator;
+
+import java.io.IOException;
+import java.util.List;
+
+public class Example {
+    public static void main(String[] args) throws IOException {
+        // 解析跟蹤文件
+        List<NewSQRTraceComparator.TraceEntry> file1Entries =
+                NewSQRTraceComparator.parseTrace("path/to/file1.log");
+        List<NewSQRTraceComparator.TraceEntry> file2Entries =
+                NewSQRTraceComparator.parseTrace("path/to/file2.log");
+
+        // 比較跟蹤，閾值為2.0
+        NewSQRTraceComparator.compareTraces(
+                file1Entries,
+                file2Entries,
+                2.0,
+                "output.txt"
+        );
+    }
+}
+```
+
+## 輸出格式
+
+輸出文件是一個Markdown格式的文本文件，包含：
+
+1. 帶有比較閾值的標題
+2. 檢測到的時間差異部分
+3. 在任一文件中發現的額外代碼部分
+4. 不匹配行的部分
+
+輸出示例：
 
 ```
-java com.example.core.tool.SQRTraceComparator <env1_trace_file> <env2_trace_file> [env1_name] [env2_name] [output_path]
+# SQR跟蹤比較結果
+閾值：2.0倍
+
+## 檢測到時間差異
+行內容：执行SQL (10:01:00):
+文件1行：3，執行時間：36060000毫秒
+文件2行：3，執行時間：72120000毫秒
+比率：2.00倍
+
+## 文件2中的額外代碼
+開始於行：6
+行6：执行SQL (10:01:30):
+行7：SELECT * FROM DEPARTMENTS
+行8：执行时间: 1.5秒
 ```
 
-### Parameters
+## 跟蹤文件格式
 
-- `env1_trace_file`: Path to the first trace file (e.g., from SIT environment)
-- `env2_trace_file`: Path to the second trace file (e.g., from UAT environment)
-- `env1_name` (optional): Name of the first environment (default: "ENV1")
-- `env2_name` (optional): Name of the second environment (default: "ENV2")
-- `output_path` (optional): Path to the output CSV file (default: "sqr_trace_comparison_result.csv")
+該工具設計用於處理使用`-S -TIMING -debugfgt -E`等跟蹤參數的Oracle PeopleSoft SQR跟蹤文件。它會在每行中查找格式為`(HH:MM:SS)`的時間信息。
 
-### Example
+## 故障排除
 
-```
-java com.example.core.tool.SQRTraceComparator sit_trace.log uat_trace.log SIT UAT comparison_result.csv
-```
+如果遇到問題：
 
-## Output Files
-
-The tool generates two output files:
-
-1. **CSV Summary Report** (e.g., `comparison_result.csv`):
-   - Contains a summary of all trace entries with their execution times and differences
-   - Flags significant differences with "ALERT"
-   - Marks entries that only exist in one environment as "UNIQUE" or "MISSING"
-
-2. **Detailed Markdown Report** (e.g., `comparison_result_detailed.md`):
-   - Provides in-depth analysis of differences
-   - Includes SQL execution plan differences
-   - Shows time breakdown differences
-   - Displays result set differences
-   - Highlights significant performance variations
-
-## Understanding the Results
-
-### CSV Summary Report Columns
-
-- **Type**: The type of trace entry (PROGRAM, SQL, PROCEDURE, VARIABLE)
-- **Identifier**: A unique identifier for the trace entry
-- **ENV1(ms)**: Execution time in milliseconds in the first environment
-- **ENV2(ms)**: Execution time in milliseconds in the second environment
-- **Diff(ms)**: Difference in execution time (ENV2 - ENV1)
-- **Diff(%)**: Percentage difference in execution time
-- **Flag**: Alert flag for significant differences
-- **Details**: Additional details about the differences
-
-### Flag Values
-
-- **ALERT**: Indicates a significant performance difference (>20% and >100ms)
-- **UNIQUE**: Entry only exists in the second environment
-- **MISSING**: Entry only exists in the first environment
-
-## Best Practices
-
-1. **Use Consistent Trace Parameters**: For the most accurate comparison, use the same trace parameters in both environments.
-
-2. **Compare Similar Workloads**: Ensure that the SQR programs are processing similar data volumes and types in both environments.
-
-3. **Focus on Significant Differences**: Pay special attention to entries flagged with "ALERT" as they represent significant performance variations.
-
-4. **Analyze SQL Plan Changes**: For SQL performance issues, examine the execution plan differences in the detailed report.
-
-5. **Check for Missing or Extra Operations**: Entries marked as "UNIQUE" or "MISSING" might indicate configuration differences between environments.
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Trace Format Not Detected Correctly**:
-   - Ensure the trace files contain the expected format markers
-   - You can manually specify the format by modifying the code if needed
-
-2. **Timestamps Not Parsed Correctly**:
-   - Verify that the trace files use the expected time format (HH:MM:SS or HH:MM:SS.SSS)
-   - Adjust the time parsing logic if your trace files use a different format
-
-3. **Entries Not Matched Between Environments**:
-   - Check that the same SQR program is being traced in both environments
-   - Verify that the trace parameters are similar enough to produce comparable output
-
-## Example Workflow
-
-1. Generate trace files in both environments:
-   ```
-   sqr -SQRTRACE 3 -S -RT my_report.sqr
-   ```
-
-2. Run the comparison:
-   ```
-   java com.example.core.tool.SQRTraceComparator sit_trace.log uat_trace.log SIT UAT results.csv
-   ```
-
-3. Review the CSV summary to identify significant differences
-
-4. Examine the detailed Markdown report for in-depth analysis of flagged issues
-
-5. Address performance problems by optimizing SQL, adjusting configurations, or fixing code issues
+1. 驗證跟蹤文件是否存在且可訪問
+2. 檢查跟蹤文件是否包含預期格式的時間信息
+3. 確保閾值是有效的數字
+4. 檢查輸出目錄是否存在且可寫入
