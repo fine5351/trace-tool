@@ -44,7 +44,10 @@ public class DetailedSqlTraceAnalyzer extends StandardTraceAnalyzer {
         String currentSqlId = null;
         boolean collectingSql = false;
 
-        for (String line : lines) {
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            int lineNumber = i + 1; // Line numbers are 1-based
+
             // Check for SQL statement start
             Matcher sqlMatcher = sqlStatementPattern.matcher(line);
             if (sqlMatcher.find()) {
@@ -53,13 +56,22 @@ public class DetailedSqlTraceAnalyzer extends StandardTraceAnalyzer {
                 currentSqlText.append(sqlMatcher.group(1).trim());
 
                 // Try to extract SQL ID from nearby lines
-                for (int i = Math.max(0, lines.indexOf(line) - 5); i < Math.min(lines.size(), lines.indexOf(line) + 1); i++) {
-                    String nearbyLine = lines.get(i);
+                for (int j = Math.max(0, i - 5); j < Math.min(lines.size(), i + 1); j++) {
+                    String nearbyLine = lines.get(j);
                     if (nearbyLine.contains("SQL:")) {
                         Pattern sqlIdPattern = Pattern.compile("SQL:(\\S+)");
                         Matcher sqlIdMatcher = sqlIdPattern.matcher(nearbyLine);
                         if (sqlIdMatcher.find()) {
                             currentSqlId = sqlIdMatcher.group(1);
+
+                            // Store the line number in the SQL entry if found
+                            if (sqlEntries.containsKey(currentSqlId)) {
+                                TraceEntry sqlEntry = sqlEntries.get(currentSqlId);
+                                if (sqlEntry.lineNumber == -1) { // Only update if not already set
+                                    sqlEntry.lineNumber = lineNumber;
+                                }
+                            }
+
                             break;
                         }
                     }

@@ -40,14 +40,38 @@ public class NewSQRTraceComparator {
         List<TraceEntry> entries = new ArrayList<>();
         List<String> lines = Files.readAllLines(Paths.get(filePath));
 
-        // 匹配跟蹤文件中執行時間的模式
-        // 根據跟蹤文件的實際格式，此模式可能需要調整
+        // Match pattern for execution time in trace file
+        // This pattern may need to be adjusted based on the actual format of the trace file
         Pattern timePattern = Pattern.compile("\\((\\d{2}:\\d{2}:\\d{2})\\)");
+
+        // Pattern to match execution time lines like "执行时间: 1.0秒"
+        Pattern executionTimePattern = Pattern.compile("执行时间: (\\d+\\.\\d+)秒");
+
+        // Skip the "SQR结束执行" line which also contains a timestamp but should not be counted
+        Pattern endPattern = Pattern.compile("SQR结束执行");
+
+        TraceEntry lastEntry = null;
 
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
-            Matcher timeMatcher = timePattern.matcher(line);
 
+            // Skip end execution line
+            if (endPattern.matcher(line).find()) {
+                continue;
+            }
+
+            // Check if this is an execution time line
+            Matcher executionTimeMatcher = executionTimePattern.matcher(line);
+            if (executionTimeMatcher.find() && lastEntry != null) {
+                // Extract the execution time in seconds
+                double executionTimeSeconds = Double.parseDouble(executionTimeMatcher.group(1));
+                // Convert to milliseconds and store in the last entry
+                lastEntry.actualExecutionTime = (long) (executionTimeSeconds * 1000);
+                continue;
+            }
+
+            // Check if this is a line with a timestamp
+            Matcher timeMatcher = timePattern.matcher(line);
             if (timeMatcher.find()) {
                 String timeStr = timeMatcher.group(1);
                 long timeMillis = parseTimeToMillis(timeStr);
@@ -55,6 +79,7 @@ public class NewSQRTraceComparator {
                 // Create a trace entry for this line
                 TraceEntry entry = new TraceEntry(line, timeMillis, i + 1);
                 entries.add(entry);
+                lastEntry = entry;
             }
         }
 
@@ -90,14 +115,14 @@ public class NewSQRTraceComparator {
             // If the line content matches, compare execution times
             if (entry1.lineContent.equals(entry2.lineContent)) {
                 // Check if execution time difference exceeds threshold
-                if (entry1.executionTime > 0 && entry2.executionTime > 0) {
-                    double ratio = (double) entry2.executionTime / entry1.executionTime;
+                if (entry1.actualExecutionTime > 0 && entry2.actualExecutionTime > 0) {
+                    double ratio = (double) entry2.actualExecutionTime / entry1.actualExecutionTime;
 
                     if (ratio > threshold || ratio < 1.0 / threshold) {
                         outputLines.add("## Time Difference Detected");
                         outputLines.add("Line content: " + entry1.lineContent);
-                        outputLines.add("File 1 line: " + entry1.lineNumber + ", execution time: " + entry1.executionTime + " ms");
-                        outputLines.add("File 2 line: " + entry2.lineNumber + ", execution time: " + entry2.executionTime + " ms");
+                        outputLines.add("File 1 line: " + entry1.lineNumber + ", execution time: " + entry1.actualExecutionTime + " ms");
+                        outputLines.add("File 2 line: " + entry2.lineNumber + ", execution time: " + entry2.actualExecutionTime + " ms");
                         outputLines.add("Ratio: " + String.format("%.2f", ratio) + " times");
                         outputLines.add("");
                     }
@@ -120,20 +145,20 @@ public class NewSQRTraceComparator {
                 }
 
                 if (found) {
-                    // 文件2有額外的代碼，記錄並跳過
-                    outputLines.add("## 文件2中的額外代碼");
-                    outputLines.add("開始於行: " + file2Entries.get(j).lineNumber);
+                    // Extra code in file2, record and skip
+                    outputLines.add("## Extra Code in File 2");
+                    outputLines.add("Starting at line: " + file2Entries.get(j).lineNumber);
                     for (int k = 0; k < lookAhead; k++) {
-                        outputLines.add("行 " + file2Entries.get(j + k).lineNumber + ": " + file2Entries.get(j + k).lineContent);
+                        outputLines.add("Line " + file2Entries.get(j + k).lineNumber + ": " + file2Entries.get(j + k).lineContent);
                     }
                     outputLines.add("");
 
-                    j += lookAhead; // 在文件2中向前跳過
+                    j += lookAhead; // Skip ahead in file2
                 } else {
-                    // 嘗試在文件1中查找匹配行
+                    // Try to find matching line in file1
                     found = false;
                     lookAhead = 1;
-                    while (i + lookAhead < file1Entries.size() && lookAhead <= 10) { // 向前查看最多10行
+                    while (i + lookAhead < file1Entries.size() && lookAhead <= 10) { // Look ahead up to 10 lines
                         if (entry2.lineContent.equals(file1Entries.get(i + lookAhead).lineContent)) {
                             found = true;
                             break;
@@ -142,20 +167,20 @@ public class NewSQRTraceComparator {
                     }
 
                     if (found) {
-                        // 文件1有額外的代碼，記錄並跳過
-                        outputLines.add("## 文件1中的額外代碼");
-                        outputLines.add("開始於行: " + file1Entries.get(i).lineNumber);
+                        // Extra code in file1, record and skip
+                        outputLines.add("## Extra Code in File 1");
+                        outputLines.add("Starting at line: " + file1Entries.get(i).lineNumber);
                         for (int k = 0; k < lookAhead; k++) {
-                            outputLines.add("行 " + file1Entries.get(i + k).lineNumber + ": " + file1Entries.get(i + k).lineContent);
+                            outputLines.add("Line " + file1Entries.get(i + k).lineNumber + ": " + file1Entries.get(i + k).lineContent);
                         }
                         outputLines.add("");
 
-                        i += lookAhead; // 在文件1中向前跳過
+                        i += lookAhead; // Skip ahead in file1
                     } else {
-                        // 行不匹配且前面沒有找到匹配，只需向前移動
-                        outputLines.add("## 不匹配的行");
-                        outputLines.add("文件1行 " + entry1.lineNumber + ": " + entry1.lineContent);
-                        outputLines.add("文件2行 " + entry2.lineNumber + ": " + entry2.lineContent);
+                        // Lines don't match and no match found ahead, just move forward
+                        outputLines.add("## Mismatched Lines");
+                        outputLines.add("File 1 line " + entry1.lineNumber + ": " + entry1.lineContent);
+                        outputLines.add("File 2 line " + entry2.lineNumber + ": " + entry2.lineContent);
                         outputLines.add("");
 
                         i++;
@@ -165,80 +190,82 @@ public class NewSQRTraceComparator {
             }
         }
 
-        // 處理文件1中剩餘的條目
+        // Handle remaining entries in file1
         while (i < file1Entries.size()) {
             TraceEntry entry = file1Entries.get(i);
-            outputLines.add("## 文件1中的額外代碼（文件末尾）");
-            outputLines.add("行 " + entry.lineNumber + ": " + entry.lineContent);
+            outputLines.add("## Extra Code in File 1 (End of File)");
+            outputLines.add("Line " + entry.lineNumber + ": " + entry.lineContent);
             i++;
         }
 
-        // 處理文件2中剩餘的條目
+        // Handle remaining entries in file2
         while (j < file2Entries.size()) {
             TraceEntry entry = file2Entries.get(j);
-            outputLines.add("## 文件2中的額外代碼（文件末尾）");
-            outputLines.add("行 " + entry.lineNumber + ": " + entry.lineContent);
+            outputLines.add("## Extra Code in File 2 (End of File)");
+            outputLines.add("Line " + entry.lineNumber + ": " + entry.lineContent);
             j++;
         }
 
-        // 將輸出寫入文件
+        // Write output to file
         Files.write(Paths.get(outputPath), outputLines);
-        log.info("比較結果已寫入：{}", outputPath);
+        log.info("Comparison results written to: {}", outputPath);
     }
 
     /**
-     * 將時間字符串解析為自午夜以來的毫秒數。
+     * Parse a time string into milliseconds since midnight.
      *
-     * @param timeStr 格式為HH:MM:SS的時間字符串
-     * @return 自午夜以來的毫秒數
+     * @param timeStr Time string in HH:MM:SS format
+     * @return Milliseconds since midnight
      */
     private static long parseTimeToMillis(String timeStr) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
         LocalTime time = LocalTime.parse(timeStr, formatter);
-        return time.toNanoOfDay() / 1_000_000; // 將納秒轉換為毫秒
+        return time.toNanoOfDay() / 1_000_000; // Convert nanoseconds to milliseconds
     }
 
     /**
-     * 運行比較器的主方法。
-     * 在方法中直接設定文件路徑和其他參數。
+     * Main method to run the comparator.
+     * File paths and other parameters are set directly in the method.
      *
-     * @throws IOException 如果文件無法讀取或寫入
+     * @throws IOException If files cannot be read or written
      */
     public static void main(String[] args) throws IOException {
-        // 在此處直接設定參數，而不是從命令行獲取
-        String file1Path = "D:\\traces\\file1.log";
-        String file2Path = "D:\\traces\\file2.log";
-        double threshold = 2.0;
-        String outputPath = "sqr_trace_differences.txt";
+        // Parse command line arguments
+        String file1Path = args[0];
+        String file2Path = args[1];
+        double threshold = args.length > 2 ? Double.parseDouble(args[2]) : 2.0;
+        String outputPath = args.length > 3 ? args[3] : "sqr_trace_differences.txt";
 
-        log.info("比較SQR跟蹤文件：");
-        log.info("文件1：{}", file1Path);
-        log.info("文件2：{}", file2Path);
-        log.info("閾值：{} 倍", threshold);
-        log.info("輸出：{}", outputPath);
+        log.info("Comparing SQR trace files:");
+        log.info("File 1: {}", file1Path);
+        log.info("File 2: {}", file2Path);
+        log.info("Threshold: {} times", threshold);
+        log.info("Output: {}", outputPath);
 
-        // 解析跟蹤文件
+        // Parse trace files
         List<TraceEntry> file1Entries = parseTrace(file1Path);
         List<TraceEntry> file2Entries = parseTrace(file2Path);
 
-        log.info("從文件1解析出 {} 個條目", file1Entries.size());
-        log.info("從文件2解析出 {} 個條目", file2Entries.size());
+        log.info("Parsed {} entries from file 1", file1Entries.size());
+        log.info("Parsed {} entries from file 2", file2Entries.size());
 
-        // 比較跟蹤
+        // Compare traces
         compareTraces(file1Entries, file2Entries, threshold, outputPath);
     }
 
     /**
-     * 表示具有時間和內容信息的跟蹤條目。
+     * Represents a trace entry with time and content information.
      */
     static class TraceEntry {
-        String lineContent;  // 行的內容
-        long executionTime;  // 執行時間（毫秒）
-        int lineNumber;      // 文件中的行號
+        String lineContent;  // Content of the line
+        long executionTime;  // Timestamp (milliseconds since midnight)
+        long actualExecutionTime;  // Actual execution time (milliseconds)
+        int lineNumber;      // Line number in the file
 
         TraceEntry(String lineContent, long executionTime, int lineNumber) {
             this.lineContent = lineContent;
             this.executionTime = executionTime;
+            this.actualExecutionTime = 0; // Default actual execution time
             this.lineNumber = lineNumber;
         }
     }

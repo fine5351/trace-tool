@@ -35,7 +35,10 @@ public class DetailedPcTraceAnalyzer extends StandardTraceAnalyzer {
         // Process method entries
         Map<String, TraceEntry> activeEntries = new HashMap<>();
 
-        for (String line : lines) {
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            int lineNumber = i + 1; // Line numbers are 1-based
+
             // Process method entries
             Matcher startMatcher = methodStartPattern.matcher(line);
             if (startMatcher.find()) {
@@ -47,6 +50,7 @@ public class DetailedPcTraceAnalyzer extends StandardTraceAnalyzer {
                 entry.type = "METHOD";
                 entry.identifier = identifier;
                 entry.startTime = parseTimeToMillis(time);
+                entry.lineNumber = lineNumber; // Store the line number
 
                 activeEntries.put(entryKey, entry);
             }

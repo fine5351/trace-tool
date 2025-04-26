@@ -231,12 +231,16 @@ public class NewAETraceComparator {
 
         // 只記錄超過閾值的條目
         if (exceedsThreshold) {
-            log.info("{} {} {} {} {} {} {} {}",
-                    env2Entry.type, env2Entry.identifier, env1Time, env2Time, diff,
+            log.info("{} {} ({}行:{}, {}行:{}) {} {} {} {} {} {}",
+                    env2Entry.type, env2Entry.identifier,
+                    env1Name, env1Entry.lineNumber, env2Name, env2Entry.lineNumber,
+                    env1Time, env2Time, diff,
                     String.format("%.2f", diffPercent), flag, detailsStr);
 
-            outputLines.add(String.format("%s,%s,%d,%d,%d,%.2f,%s,%s",
-                    env2Entry.type, env2Entry.identifier, env1Time, env2Time, diff, diffPercent, flag, detailsStr));
+            outputLines.add(String.format("%s,%s,%s行:%d,%s行:%d,%d,%d,%d,%.2f,%s,%s",
+                    env2Entry.type, env2Entry.identifier,
+                    env1Name, env1Entry.lineNumber, env2Name, env2Entry.lineNumber,
+                    env1Time, env2Time, diff, diffPercent, flag, detailsStr));
         }
     }
 
@@ -244,8 +248,8 @@ public class NewAETraceComparator {
      * 記錄多執行的代碼
      */
     private static void recordExtraCode(TraceEntry entry, String envName, List<String> extraCodeList) {
-        String extraInfo = String.format("%s: %s (%s) - 持續時間: %d 毫秒",
-                envName, entry.identifier, entry.type, entry.duration());
+        String extraInfo = String.format("%s: %s (%s) - 行號: %d - 持續時間: %d 毫秒",
+                envName, entry.identifier, entry.type, entry.lineNumber, entry.duration());
 
         if (entry.content != null && !entry.content.isEmpty()) {
             extraInfo += "\n內容: " + entry.content;
@@ -254,8 +258,8 @@ public class NewAETraceComparator {
         extraCodeList.add(extraInfo);
         extraCodeList.add("---");
 
-        log.info("{}中的額外代碼: {} ({}) - 持續時間: {} 毫秒",
-                envName, entry.identifier, entry.type, entry.duration());
+        log.info("{}中的額外代碼: {} ({}) - 行號: {} - 持續時間: {} 毫秒",
+                envName, entry.identifier, entry.type, entry.lineNumber, entry.duration());
     }
 
     /**

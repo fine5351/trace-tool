@@ -54,21 +54,24 @@ public class StandardTraceAnalyzer implements TraceAnalyzer {
 
         Map<String, TraceEntry> activeEntries = new HashMap<>();
 
-        for (String line : lines) {
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            int lineNumber = i + 1; // Line numbers are 1-based
+
             // Process step entries
-            processEntryType(line, stepPattern, stepEndPattern, "STEP", activeEntries, entries);
+            processEntryType(line, lineNumber, stepPattern, stepEndPattern, "STEP", activeEntries, entries);
 
             // Process SQL entries
-            processEntryType(line, sqlPattern, sqlEndPattern, "SQL", activeEntries, entries);
+            processEntryType(line, lineNumber, sqlPattern, sqlEndPattern, "SQL", activeEntries, entries);
 
             // Process function entries
-            processEntryType(line, functionPattern, functionEndPattern, "FUNCTION", activeEntries, entries);
+            processEntryType(line, lineNumber, functionPattern, functionEndPattern, "FUNCTION", activeEntries, entries);
         }
 
         return entries;
     }
 
-    private void processEntryType(String line, Pattern startPattern, Pattern endPattern,
+    private void processEntryType(String line, int lineNumber, Pattern startPattern, Pattern endPattern,
                                   String type, Map<String, TraceEntry> activeEntries,
                                   List<TraceEntry> entries) {
         Matcher startMatcher = startPattern.matcher(line);
@@ -81,6 +84,7 @@ public class StandardTraceAnalyzer implements TraceAnalyzer {
             entry.type = type;
             entry.identifier = identifier;
             entry.startTime = parseTimeToMillis(time);
+            entry.lineNumber = lineNumber; // Store the line number
 
             activeEntries.put(entryKey, entry);
         }
