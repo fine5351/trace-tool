@@ -1,18 +1,14 @@
 package com.example.core.tool;
 
+import com.example.core.tool.analyzer.TraceAnalyzer;
+import com.example.core.tool.analyzer.TraceAnalyzerFactory;
+import com.example.core.tool.analyzer.TraceEntry;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.*;
 
 /**
  * 一個用於比較不同環境中Application Engine跟蹤文件的工具。
@@ -25,391 +21,19 @@ import java.util.regex.Pattern;
  *   <li>詳細PeopleCode格式：包括PeopleCode執行詳情（-TOOLSTRACEPC）</li>
  * </ul>
  *
- * <p>該工具自動檢測跟蹤格式並相應地解析文件。
+ * <p>該工具支持同時處理多個跟蹤參數，例如 "-TRACE 3 -TOOLSTRACEPC 4044 -TOOLSTRACESQL 31"。
+ * 它會創建多個分析器來處理不同的跟蹤參數格式，並將結果合併以進行全面分析。</p>
+ *
+ * <p>該工具使用不同的分析器來處理不同的跟蹤參數格式，並相應地解析文件。
  * 然後比較來自兩個不同環境的跟蹤條目並生成：</p>
  * <ul>
  *   <li>包含差異摘要的CSV文件</li>
  *   <li>包含深入分析差異的詳細Markdown報告</li>
  *   <li>包含最重要差異的控制台輸出</li>
  * </ul>
- *
- * <p>使用方法：</p>
- * <pre>
- * java AETraceComparator &lt;env1_trace_file&gt; &lt;env2_trace_file&gt; [env1_name] [env2_name] [output_path]
- * </pre>
- *
- * <p>示例：</p>
- * <pre>
- * java AETraceComparator sit_trace.log uat_trace.log SIT UAT ae_comparison_result.csv
- * </pre>
  */
 @Slf4j
 public class AETraceComparator {
-
-    /**
-     * 檢測AE跟蹤文件的格式。
-     *
-     * @param filePath AE跟蹤文件的路徑
-     * @return 檢測到的跟蹤格式
-     * @throws IOException 如果文件無法讀取
-     */
-    public static TraceFormat detectTraceFormat(String filePath) throws IOException {
-        List<String> sampleLines = Files.readAllLines(Paths.get(filePath)).subList(0, Math.min(100, (int) Files.lines(Paths.get(filePath)).count()));
-
-        boolean hasDetailedSql = false;
-        boolean hasDetailedPC = false;
-
-        for (String line : sampleLines) {
-            if (line.contains("DBFLAGS") || line.contains("TOOLSTRACESQL") ||
-                line.contains("SQL statement") || line.contains("Bind-Variables")) {
-                hasDetailedSql = true;
-            }
-            if (line.contains("TOOLSTRACEPC") || line.contains("PeopleCode program") ||
-                line.contains("PeopleCode Execution") || line.contains("PeopleCode trace")) {
-                hasDetailedPC = true;
-            }
-        }
-
-        if (hasDetailedPC) {
-            return TraceFormat.DETAILED_PC;
-        } else if (hasDetailedSql) {
-            return TraceFormat.DETAILED_SQL;
-        } else {
-            return TraceFormat.STANDARD;
-        }
-    }
-
-    /**
-     * 解析AE跟蹤文件並提取跟蹤條目。
-     *
-     * @param filePath AE跟蹤文件的路徑
-     * @return 跟蹤條目列表
-     * @throws IOException 如果文件無法讀取
-     */
-    public static List<TraceEntry> parseTrace(String filePath) throws IOException {
-        return parseTrace(filePath, detectTraceFormat(filePath));
-    }
-
-    /**
-     * 解析AE跟蹤文件並提取跟蹤條目。
-     *
-     * @param filePath AE跟蹤文件的路徑
-     * @param format   跟蹤格式
-     * @return 跟蹤條目列表
-     * @throws IOException 如果文件無法讀取
-     */
-    public static List<TraceEntry> parseTrace(String filePath, TraceFormat format) throws IOException {
-        List<TraceEntry> entries = new ArrayList<>();
-        List<String> lines = Files.readAllLines(Paths.get(filePath));
-
-        log.info("Detected trace format: {}", format);
-
-        // 不同跟蹤條目類型的模式
-        Pattern stepStartPattern = Pattern.compile(">>>>>>>>>>>>>>>>>>>> Begin Step: (.+)");
-        Pattern stepEndPattern = Pattern.compile("<<<<<<<<<<<<<<<<<<<< End Step: (.+)");
-        Pattern sqlPattern = Pattern.compile("\\(SQLExec\\)|\\(Statement Execute\\)|\\(PSAPPSRV\\)");
-        Pattern functionPattern = Pattern.compile("Function: (.+)");
-        Pattern methodPattern = Pattern.compile("Method: (.+)");
-        Pattern timePattern = Pattern.compile("(\\d{2}:\\d{2}:\\d{2}\\.\\d{3})");
-
-        // 詳細SQL格式的額外模式
-        Pattern sqlTextPattern = format == TraceFormat.DETAILED_SQL ?
-                Pattern.compile("SQL statement:(.*)") : null;
-        Pattern bindVarsPattern = format == TraceFormat.DETAILED_SQL ?
-                Pattern.compile("Bind-Variables:(.*)") : null;
-
-        // 詳細PeopleCode格式的額外模式
-        Pattern pcExecutionPattern = format == TraceFormat.DETAILED_PC ?
-                Pattern.compile("PeopleCode Execution:(.*)") : null;
-        Pattern pcVariablePattern = format == TraceFormat.DETAILED_PC ?
-                Pattern.compile("Variable: (.+) = (.+)") : null;
-
-        Map<String, TraceEntry> activeEntries = new HashMap<>();
-        StringBuilder currentSql = new StringBuilder();
-        StringBuilder currentBindVars = new StringBuilder();
-        StringBuilder currentPcExecution = new StringBuilder();
-        boolean collectingSql = false;
-        boolean collectingBindVars = false;
-        boolean collectingPcExecution = false;
-        int sqlCounter = 0;
-        int functionCounter = 0;
-        int methodCounter = 0;
-
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i);
-            Matcher timeMatcher = timePattern.matcher(line);
-
-            if (timeMatcher.find()) {
-                long timeMillis = parseTimeToMillis(timeMatcher.group(1));
-
-                // 步驟開始
-                if (line.contains(">>>>>>>>>>>>>>>>>>>> Begin Step:")) {
-                    Matcher startMatcher = stepStartPattern.matcher(line);
-                    if (startMatcher.find()) {
-                        String stepName = startMatcher.group(1);
-                        String identifier = "STEP: " + stepName;
-                        TraceEntry entry = new TraceEntry();
-                        entry.identifier = identifier;
-                        entry.type = "STEP";
-                        entry.startTime = timeMillis;
-                        entry.content = stepName;
-                        activeEntries.put(identifier, entry);
-                    }
-                }
-                // 步驟結束
-                else if (line.contains("<<<<<<<<<<<<<<<<<<<< End Step:")) {
-                    Matcher endMatcher = stepEndPattern.matcher(line);
-                    if (endMatcher.find()) {
-                        String stepName = endMatcher.group(1);
-                        String identifier = "STEP: " + stepName;
-                        if (activeEntries.containsKey(identifier)) {
-                            TraceEntry entry = activeEntries.get(identifier);
-                            entry.endTime = timeMillis;
-                            entries.add(entry);
-                            activeEntries.remove(identifier);
-                        }
-                    }
-                }
-                // SQL執行開始
-                else if (sqlPattern.matcher(line).find()) {
-                    sqlCounter++;
-                    String identifier = "SQL#" + sqlCounter;
-                    TraceEntry entry = new TraceEntry();
-                    entry.identifier = identifier;
-                    entry.type = "SQL";
-                    entry.startTime = timeMillis;
-
-                    // 如果是詳細SQL格式，嘗試提取SQL文本
-                    if (format == TraceFormat.DETAILED_SQL && i + 1 < lines.size()) {
-                        // 查找SQL文本
-                        for (int j = i + 1; j < Math.min(i + 5, lines.size()); j++) {
-                            if (sqlTextPattern != null) {
-                                Matcher sqlTextMatcher = sqlTextPattern.matcher(lines.get(j));
-                                if (sqlTextMatcher.find()) {
-                                    collectingSql = true;
-                                    currentSql = new StringBuilder(sqlTextMatcher.group(1).trim());
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    activeEntries.put(identifier, entry);
-                }
-                // SQL綁定變量
-                else if (format == TraceFormat.DETAILED_SQL && line.contains("Bind-Variables")) {
-                    if (bindVarsPattern != null) {
-                        Matcher bindVarsMatcher = bindVarsPattern.matcher(line);
-                        if (bindVarsMatcher.find()) {
-                            collectingBindVars = true;
-                            currentBindVars = new StringBuilder(bindVarsMatcher.group(1).trim());
-
-                            // 將綁定變量添加到最近的SQL條目
-                            if (!activeEntries.isEmpty() && sqlCounter > 0) {
-                                String identifier = "SQL#" + sqlCounter;
-                                if (activeEntries.containsKey(identifier)) {
-                                    TraceEntry entry = activeEntries.get(identifier);
-                                    entry.metadata.put("bindVariables", currentBindVars.toString());
-                                }
-                            }
-                        }
-                    }
-
-                    // 如果有Bind-Variables，則關閉最後一個SQL Entry
-                    if (!activeEntries.isEmpty() && sqlCounter > 0) {
-                        String identifier = "SQL#" + sqlCounter;
-                        if (activeEntries.containsKey(identifier)) {
-                            TraceEntry entry = activeEntries.get(identifier);
-                            if (entry.endTime == 0) { // 避免重複關閉
-                                entry.endTime = timeMillis;
-
-                                // 如果收集了SQL文本，添加到條目
-                                if (collectingSql && currentSql.length() > 0) {
-                                    entry.content = currentSql.toString().trim();
-                                    collectingSql = false;
-                                }
-
-                                entries.add(entry);
-                                activeEntries.remove(identifier);
-                            }
-                        }
-                    }
-                }
-                // 函數調用
-                else if (functionPattern.matcher(line).find()) {
-                    Matcher functionMatcher = functionPattern.matcher(line);
-                    if (functionMatcher.find()) {
-                        functionCounter++;
-                        String funcName = functionMatcher.group(1);
-                        String identifier = "FUNC: " + funcName + "#" + functionCounter;
-                        TraceEntry entry = new TraceEntry();
-                        entry.identifier = identifier;
-                        entry.type = "FUNCTION";
-                        entry.content = funcName;
-                        entry.startTime = timeMillis;
-
-                        // 如果是詳細PeopleCode格式，嘗試提取更多信息
-                        if (format == TraceFormat.DETAILED_PC && pcExecutionPattern != null) {
-                            for (int j = i + 1; j < Math.min(i + 5, lines.size()); j++) {
-                                Matcher pcExecMatcher = pcExecutionPattern.matcher(lines.get(j));
-                                if (pcExecMatcher.find()) {
-                                    collectingPcExecution = true;
-                                    currentPcExecution = new StringBuilder(pcExecMatcher.group(1).trim());
-                                    entry.metadata.put("pcExecution", currentPcExecution.toString());
-                                    break;
-                                }
-                            }
-                        }
-
-                        activeEntries.put(identifier, entry);
-                    }
-                }
-                // 方法調用
-                else if (methodPattern.matcher(line).find()) {
-                    Matcher methodMatcher = methodPattern.matcher(line);
-                    if (methodMatcher.find()) {
-                        methodCounter++;
-                        String methodName = methodMatcher.group(1);
-                        String identifier = "METH: " + methodName + "#" + methodCounter;
-                        TraceEntry entry = new TraceEntry();
-                        entry.identifier = identifier;
-                        entry.type = "METHOD";
-                        entry.content = methodName;
-                        entry.startTime = timeMillis;
-                        activeEntries.put(identifier, entry);
-                    }
-                }
-                // 檢查是否有新行但沒有新的跟蹤條目開始，可能是某個條目的結束
-                else if (!line.trim().isEmpty()) {
-                    // 嘗試關閉最近的活動條目
-                    if (!activeEntries.isEmpty()) {
-                        // 獲取最後添加的條目
-                        String lastKey = new ArrayList<>(activeEntries.keySet()).get(activeEntries.size() - 1);
-                        TraceEntry entry = activeEntries.get(lastKey);
-
-                        // 如果是函數或方法，並且沒有明確的結束標記，則在這裡關閉
-                        if ((entry.type.equals("FUNCTION") || entry.type.equals("METHOD")) && entry.endTime == 0) {
-                            entry.endTime = timeMillis;
-                            entries.add(entry);
-                            activeEntries.remove(lastKey);
-                        }
-                        // 如果是SQL，並且沒有明確的結束標記，則在這裡關閉
-                        else if (entry.type.equals("SQL") && entry.endTime == 0) {
-                            entry.endTime = timeMillis;
-
-                            // 如果收集了SQL文本，添加到條目
-                            if (collectingSql && currentSql.length() > 0) {
-                                entry.content = currentSql.toString().trim();
-                                collectingSql = false;
-                            }
-
-                            entries.add(entry);
-                            activeEntries.remove(lastKey);
-                        }
-                    }
-                }
-            }
-
-            // 收集SQL文本（如果在收集模式）
-            if (collectingSql && format == TraceFormat.DETAILED_SQL && sqlTextPattern != null) {
-                // 如果遇到新的時間戳或綁定變量，則停止收集SQL文本
-                if (timePattern.matcher(line).find() || line.contains("Bind-Variables")) {
-                    collectingSql = false;
-
-                    // 將SQL文本添加到最近的SQL條目
-                    if (!activeEntries.isEmpty() && sqlCounter > 0) {
-                        String identifier = "SQL#" + sqlCounter;
-                        if (activeEntries.containsKey(identifier)) {
-                            TraceEntry entry = activeEntries.get(identifier);
-                            entry.content = currentSql.toString().trim();
-                        }
-                    }
-                }
-                // 否則繼續收集SQL文本
-                else if (!line.trim().isEmpty()) {
-                    currentSql.append(" ").append(line.trim());
-                }
-            }
-
-            // 收集PeopleCode執行信息（如果在收集模式）
-            if (collectingPcExecution && format == TraceFormat.DETAILED_PC && pcExecutionPattern != null) {
-                // 如果遇到新的時間戳或空行，則停止收集
-                if (timePattern.matcher(line).find() || line.trim().isEmpty()) {
-                    collectingPcExecution = false;
-
-                    // 將PeopleCode執行信息添加到最近的函數條目
-                    if (!activeEntries.isEmpty() && functionCounter > 0) {
-                        String identifier = "FUNC: " + activeEntries.keySet().stream()
-                                .filter(k -> k.startsWith("FUNC:"))
-                                .findFirst().orElse("");
-                        if (!identifier.isEmpty() && activeEntries.containsKey(identifier)) {
-                            TraceEntry entry = activeEntries.get(identifier);
-                            entry.metadata.put("pcExecution", currentPcExecution.toString());
-                        }
-                    }
-                }
-                // 否則繼續收集PeopleCode執行信息
-                else {
-                    currentPcExecution.append("\n").append(line.trim());
-                }
-            }
-
-            // 檢查PeopleCode變量（如果是詳細PeopleCode格式）
-            if (format == TraceFormat.DETAILED_PC && pcVariablePattern != null) {
-                Matcher varMatcher = pcVariablePattern.matcher(line);
-                if (varMatcher.find()) {
-                    String varName = varMatcher.group(1);
-                    String varValue = varMatcher.group(2);
-
-                    // 將變量添加到最近的函數或方法條目
-                    if (!activeEntries.isEmpty()) {
-                        String identifier = activeEntries.keySet().stream()
-                                .filter(k -> k.startsWith("FUNC:") || k.startsWith("METH:"))
-                                .findFirst().orElse("");
-                        if (!identifier.isEmpty() && activeEntries.containsKey(identifier)) {
-                            TraceEntry entry = activeEntries.get(identifier);
-                            Map<String, String> variables = (Map<String, String>) entry.metadata
-                                    .getOrDefault("variables", new HashMap<String, String>());
-                            variables.put(varName, varValue);
-                            entry.metadata.put("variables", variables);
-                        }
-                    }
-                }
-            }
-        }
-
-        // 關閉所有未關閉的條目
-        for (String key : new ArrayList<>(activeEntries.keySet())) {
-            TraceEntry entry = activeEntries.get(key);
-            if (entry.endTime == 0) {
-                log.warn("Entry not properly closed: {}", entry.identifier);
-                // 使用最後一行的時間作為結束時間
-                if (!lines.isEmpty()) {
-                    String lastLine = lines.get(lines.size() - 1);
-                    Matcher lastTimeMatcher = timePattern.matcher(lastLine);
-                    if (lastTimeMatcher.find()) {
-                        entry.endTime = parseTimeToMillis(lastTimeMatcher.group(1));
-                        entries.add(entry);
-                    }
-                }
-            }
-        }
-
-        return entries;
-    }
-
-    /**
-     * 將時間字符串解析為自午夜以來的毫秒數。
-     *
-     * @param timeStr 格式為HH:MM:SS.SSS的時間字符串
-     * @return 自午夜以來的毫秒數
-     */
-    private static long parseTimeToMillis(String timeStr) {
-        // 使用Java 8時間API解析時間
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
-        LocalTime time = LocalTime.parse(timeStr, formatter);
-        return time.toNanoOfDay() / 1_000_000; // 將納秒轉換為毫秒
-    }
 
     /**
      * 比較兩個跟蹤文件並輸出差異。
@@ -533,32 +157,29 @@ public class AETraceComparator {
 
                         // 添加到詳細報告
                         detailedReport.add("### Variables Difference for " + env2Entry.identifier);
-                        detailedReport.add("#### " + env1Name + " Variables:");
-                        detailedReport.add("```");
-                        for (Map.Entry<String, String> var : env1Vars.entrySet()) {
-                            detailedReport.add(var.getKey() + " = " + var.getValue());
+                        detailedReport.add("| Variable | " + env1Name + " | " + env2Name + " |");
+                        detailedReport.add("|----------|------------|------------|");
+
+                        // 合併兩個環境的所有變量名
+                        Set<String> allVars = new HashSet<>(env1Vars.keySet());
+                        allVars.addAll(env2Vars.keySet());
+
+                        for (String varName : allVars) {
+                            String env1Value = env1Vars.getOrDefault(varName, "N/A");
+                            String env2Value = env2Vars.getOrDefault(varName, "N/A");
+                            if (!env1Value.equals(env2Value)) {
+                                detailedReport.add("| " + varName + " | " + env1Value + " | " + env2Value + " |");
+                            }
                         }
-                        detailedReport.add("```");
-                        detailedReport.add("#### " + env2Name + " Variables:");
-                        detailedReport.add("```");
-                        for (Map.Entry<String, String> var : env2Vars.entrySet()) {
-                            detailedReport.add(var.getKey() + " = " + var.getValue());
-                        }
-                        detailedReport.add("```");
                         detailedReport.add("");
                     }
                 }
 
-                String detailsStr = details.toString();
-                if (detailsStr.endsWith("; ")) {
-                    detailsStr = detailsStr.substring(0, detailsStr.length() - 2);
-                }
+                String detailsStr = details.toString().trim();
+                log.info("{} {} {} {} {} {} {} {}",
+                        env2Entry.type, env2Entry.identifier, env1Time, env2Time, diff, String.format("%.2f", diffPercent), flag, detailsStr);
 
-                log.info("{} {} {} {} {} {:.2f} {} {}",
-                        env2Entry.type, env2Entry.identifier, env1Time, env2Time, diff, diffPercent, flag,
-                        detailsStr.length() > 20 ? detailsStr.substring(0, 17) + "..." : detailsStr);
-
-                outputLines.add(String.format("%s,%s,%d,%d,%d,%.2f,%s,\"%s\"",
+                outputLines.add(String.format("%s,%s,%d,%d,%d,%.2f,%s,%s",
                         env2Entry.type, env2Entry.identifier, env1Time, env2Time, diff, diffPercent, flag, detailsStr));
 
                 // 如果有ALERT標記，添加到詳細報告
@@ -630,52 +251,95 @@ public class AETraceComparator {
     }
 
     /**
-     * 主方法，用於運行比較器。
+     * 使用多個分析器解析跟蹤文件，並將結果合併。
+     * 此方法允許同時使用多種不同的分析器（例如標準分析器、SQL分析器和PeopleCode分析器）
+     * 來處理同一個跟蹤文件，從而獲取更全面的分析結果。
+     * <p>
+     * 合併邏輯：
+     * - 如果多個分析器發現相同的條目（相同的類型和標識符），則合併這些條目
+     * - 保留最早的開始時間和最晚的結束時間
+     * - 如果一個分析器提供了內容而另一個沒有，則使用有內容的那個
+     * - 合併所有元數據，保留所有唯一的鍵值對
      *
-     * @param args 命令行參數：env1TraceFile env2TraceFile [env1Name] [env2Name] [outputPath]
-     * @throws IOException 如果文件無法讀取或寫入
+     * @param filePath  跟蹤文件路徑
+     * @param analyzers 分析器列表
+     * @return 合併後的跟蹤條目列表
+     * @throws IOException 如果文件無法讀取
      */
-    public static void main(String[] args) throws IOException {
-        if (args.length < 2) {
-            log.info("Usage: java AETraceComparator <env1_trace_file> <env2_trace_file> [env1_name] [env2_name] [output_path]");
-            log.info("Example: java AETraceComparator sit_trace.log uat_trace.log SIT UAT ae_comparison_result.csv");
-            return;
+    public static List<TraceEntry> parseTraceWithMultipleAnalyzers(String filePath, List<TraceAnalyzer> analyzers) throws IOException {
+        List<TraceEntry> allEntries = new ArrayList<>();
+        Map<String, TraceEntry> entryMap = new HashMap<>();
+
+        // 使用每個分析器解析文件
+        for (TraceAnalyzer analyzer : analyzers) {
+            List<TraceEntry> entries = analyzer.parseTrace(filePath);
+
+            // 合併結果
+            for (TraceEntry entry : entries) {
+                String key = entry.type + ":" + entry.identifier;
+
+                if (entryMap.containsKey(key)) {
+                    // 已存在此條目，合併元數據
+                    TraceEntry existingEntry = entryMap.get(key);
+
+                    // 保留最早的開始時間和最晚的結束時間
+                    existingEntry.startTime = Math.min(existingEntry.startTime, entry.startTime);
+                    existingEntry.endTime = Math.max(existingEntry.endTime, entry.endTime);
+
+                    // 如果新條目有內容而現有條目沒有，則使用新條目的內容
+                    if (existingEntry.content == null && entry.content != null) {
+                        existingEntry.content = entry.content;
+                    }
+
+                    // 合併元數據
+                    for (Map.Entry<String, Object> metadataEntry : entry.metadata.entrySet()) {
+                        if (!existingEntry.metadata.containsKey(metadataEntry.getKey())) {
+                            existingEntry.metadata.put(metadataEntry.getKey(), metadataEntry.getValue());
+                        }
+                    }
+                } else {
+                    // 新條目，添加到映射
+                    entryMap.put(key, entry);
+                }
+            }
         }
 
-        String env1Name = args.length > 2 ? args[2] : "ENV1";
-        String env2Name = args.length > 3 ? args[3] : "ENV2";
-        String outputPath = args.length > 4 ? args[4] : "ae_trace_comparison_result.csv";
-
-        List<TraceEntry> env1Entries = parseTrace(args[0]);
-        List<TraceEntry> env2Entries = parseTrace(args[1]);
-
-        compareTraces(env1Entries, env2Entries, env1Name, env2Name, outputPath);
+        // 將映射轉換為列表
+        allEntries.addAll(entryMap.values());
+        return allEntries;
     }
 
     /**
-     * 表示不同AE跟蹤參數格式的枚舉
+     * 主方法，用於運行比較器。
+     * 直接在代碼中指定兩個trace檔案路徑與使用的trace參數。
+     *
+     * @throws IOException 如果文件無法讀取或寫入
      */
-    public enum TraceFormat {
-        STANDARD,       // 包含基本信息的標準格式 (-TRACE 1)
-        DETAILED_SQL,   // 包含詳細SQL信息 (-DBFLAGS 或 -TOOLSTRACESQL)
-        DETAILED_PC     // 包含詳細PeopleCode信息 (-TOOLSTRACEPC)
+    public static void main(String[] args) throws IOException {
+        // 直接在代碼中指定檔案路徑和參數，而不是從命令行獲取
+        String env1TraceFile = "D:\\traces\\env1_trace.log";
+        String env2TraceFile = "D:\\traces\\env2_trace.log";
+        String env1Name = "DEV";
+        String env2Name = "TEST";
+        String outputPath = "ae_trace_comparison_result.csv";
+
+        // 指定使用的trace參數（支持多個參數）
+        String traceParams = "-TRACE 3 -TOOLSTRACEPC 4044 -TOOLSTRACESQL 31"; // 多個trace參數
+
+        // 根據trace參數創建多個分析器
+        List<TraceAnalyzer> analyzers = TraceAnalyzerFactory.createAnalyzersForParams(traceParams);
+
+        log.info("使用參數 {} 分析 {} 和 {} 檔案", traceParams, env1TraceFile, env2TraceFile);
+        log.info("創建了 {} 個分析器", analyzers.size());
+
+        // 使用多個分析器解析trace檔案
+        List<TraceEntry> env1Entries = parseTraceWithMultipleAnalyzers(env1TraceFile, analyzers);
+        List<TraceEntry> env2Entries = parseTraceWithMultipleAnalyzers(env2TraceFile, analyzers);
+
+        log.info("從 {} 解析出 {} 個條目", env1TraceFile, env1Entries.size());
+        log.info("從 {} 解析出 {} 個條目", env2TraceFile, env2Entries.size());
+
+        // 比較兩個環境的trace結果
+        compareTraces(env1Entries, env2Entries, env1Name, env2Name, outputPath);
     }
-
-    static class TraceEntry {
-        String identifier; // 可以是Step名稱、SQL摘要或Function名稱
-        String type;       // STEP, SQL, FUNCTION, METHOD
-        long startTime;    // 以毫秒為單位
-        long endTime;      // 以毫秒為單位
-        String content;    // 額外內容，如SQL語句文本
-        Map<String, Object> metadata; // 條目的額外元數據
-
-        TraceEntry() {
-            this.metadata = new HashMap<>();
-        }
-
-        long duration() {
-            return endTime - startTime;
-        }
-    }
-
 }

@@ -739,25 +739,86 @@ public class SQRTraceComparator {
     }
 
     /**
-     * Main method to run the comparator.
+     * Parse trace parameters string and convert to TraceFormat.
+     * Handles multiple parameters like "-S -TIMING -debugfgt -E".
      *
-     * @param args Command line arguments: env1TraceFile env2TraceFile env1Name env2Name outputPath
+     * @param traceParams Trace parameters string
+     * @return The appropriate TraceFormat
+     */
+    public static TraceFormat parseTraceParams(String traceParams) {
+        if (traceParams == null || traceParams.isEmpty()) {
+            return TraceFormat.STANDARD;
+        }
+
+        boolean hasDetailedSql = false;
+        boolean hasDetailedTime = false;
+        boolean hasDetailedResult = false;
+
+        // Convert to uppercase for case-insensitive matching
+        String upperCaseParams = traceParams.toUpperCase();
+
+        // Check for SQL detailed info parameters
+        if (upperCaseParams.contains("-S") || upperCaseParams.contains("-SQL")) {
+            hasDetailedSql = true;
+        }
+
+        // Check for timing detailed info parameters
+        if (upperCaseParams.contains("-TIMING") || upperCaseParams.contains("-RT") ||
+            upperCaseParams.contains("-TIME")) {
+            hasDetailedTime = true;
+        }
+
+        // Check for result set detailed info parameters
+        if (upperCaseParams.contains("-E") || upperCaseParams.contains("-RS") ||
+            upperCaseParams.contains("-RESULT")) {
+            hasDetailedResult = true;
+        }
+
+        // Use the factory method to create the appropriate format
+        return TraceFormat.fromFeatures(hasDetailedSql, hasDetailedTime, hasDetailedResult);
+    }
+
+    /**
+     * Parse trace file with specific trace parameters.
+     *
+     * @param filePath    Path to the trace file
+     * @param traceParams Trace parameters string
+     * @return List of trace entries
+     * @throws IOException If the file cannot be read
+     */
+    public static List<TraceEntry> parseTraceWithParams(String filePath, String traceParams) throws IOException {
+        TraceFormat format = parseTraceParams(traceParams);
+        log.info("Using trace format: {} for parameters: {}", format, traceParams);
+        return parseTrace(filePath, format);
+    }
+
+    /**
+     * Main method to run the comparator.
+     * Directly specifies analysis files, trace parameters, and output files.
+     *
      * @throws IOException If files cannot be read or written
      */
     public static void main(String[] args) throws IOException {
-        if (args.length < 2) {
-            System.out.println("Usage: java SQRTraceComparator <env1_trace_file> <env2_trace_file> [env1_name] [env2_name] [output_path]");
-            System.out.println("Example: java SQRTraceComparator sit_trace.log uat_trace.log SIT UAT sqr_comparison_result.csv");
-            return;
-        }
+        // Directly specify files and parameters in the code
+        String env1TraceFile = "D:\\traces\\env1_trace.log";
+        String env2TraceFile = "D:\\traces\\env2_trace.log";
+        String env1Name = "DEV";
+        String env2Name = "TEST";
+        String outputPath = "sqr_trace_comparison_result.csv";
 
-        String env1Name = args.length > 2 ? args[2] : "ENV1";
-        String env2Name = args.length > 3 ? args[3] : "ENV2";
-        String outputPath = args.length > 4 ? args[4] : "sqr_trace_comparison_result.csv";
+        // Specify trace parameters (supports multiple parameters)
+        String traceParams = "-S -TIMING -debugfgt -E";
 
-        List<TraceEntry> env1Entries = parseTrace(args[0]);
-        List<TraceEntry> env2Entries = parseTrace(args[1]);
+        log.info("Using parameters {} to analyze {} and {} files", traceParams, env1TraceFile, env2TraceFile);
 
+        // Parse trace files with the specified parameters
+        List<TraceEntry> env1Entries = parseTraceWithParams(env1TraceFile, traceParams);
+        List<TraceEntry> env2Entries = parseTraceWithParams(env2TraceFile, traceParams);
+
+        log.info("Parsed {} entries from {}", env1Entries.size(), env1TraceFile);
+        log.info("Parsed {} entries from {}", env2Entries.size(), env2TraceFile);
+
+        // Compare the traces
         compareTraces(env1Entries, env2Entries, env1Name, env2Name, outputPath);
     }
 }

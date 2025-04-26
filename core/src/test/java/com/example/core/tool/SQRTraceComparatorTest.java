@@ -308,6 +308,52 @@ class SQRTraceComparatorTest {
     }
 
     /**
+     * Test that the trace parameter parsing works correctly.
+     */
+    @Test
+    void testParseTraceParams() {
+        // Test standard format (no parameters)
+        assertEquals(SQRTraceComparator.TraceFormat.STANDARD,
+                SQRTraceComparator.parseTraceParams(""));
+
+        // Test SQL detailed format
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_SQL,
+                SQRTraceComparator.parseTraceParams("-S"));
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_SQL,
+                SQRTraceComparator.parseTraceParams("-SQL"));
+
+        // Test time detailed format
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_TIME,
+                SQRTraceComparator.parseTraceParams("-TIMING"));
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_TIME,
+                SQRTraceComparator.parseTraceParams("-RT"));
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_TIME,
+                SQRTraceComparator.parseTraceParams("-TIME"));
+
+        // Test result detailed format
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_RESULT,
+                SQRTraceComparator.parseTraceParams("-E"));
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_RESULT,
+                SQRTraceComparator.parseTraceParams("-RS"));
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_RESULT,
+                SQRTraceComparator.parseTraceParams("-RESULT"));
+
+        // Test combined formats
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_SQL_TIME,
+                SQRTraceComparator.parseTraceParams("-S -TIMING"));
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_SQL_RESULT,
+                SQRTraceComparator.parseTraceParams("-S -E"));
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_TIME_RESULT,
+                SQRTraceComparator.parseTraceParams("-TIMING -E"));
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_ALL,
+                SQRTraceComparator.parseTraceParams("-S -TIMING -E"));
+
+        // Test with additional parameters that should be ignored
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_ALL,
+                SQRTraceComparator.parseTraceParams("-S -TIMING -debugfgt -E"));
+    }
+
+    /**
      * Helper method to create a sample trace file.
      */
     private Path createSampleTraceFile(String fileName, String content) throws IOException {
