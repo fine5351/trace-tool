@@ -64,7 +64,64 @@ class SQRTraceComparatorTest {
                 "X\n" +
                 "SQR结束执行: 2023-05-15 14:32:45\n");
 
-        // Test format detection
+        // Create sample trace files with mixed formats
+        Path detailedSqlTimeTrace = createSampleTraceFile("detailed_sql_time_trace.log",
+                "SQR开始执行: 2023-05-15 14:25:30\n" +
+                "程序: TEST.SQR\n" +
+                "执行SQL (14:25:31):\n" +
+                "SELECT * FROM DUAL\n" +
+                "SQL执行计划:\n" +
+                "TABLE ACCESS FULL DUAL\n" +
+                "执行时间: 1.25秒\n" +
+                "运行时间详情:\n" +
+                "解析: 0.25秒\n" +
+                "执行: 1.00秒\n" +
+                "SQR结束执行: 2023-05-15 14:32:45\n");
+
+        Path detailedSqlResultTrace = createSampleTraceFile("detailed_sql_result_trace.log",
+                "SQR开始执行: 2023-05-15 14:25:30\n" +
+                "程序: TEST.SQR\n" +
+                "执行SQL (14:25:31):\n" +
+                "SELECT * FROM DUAL\n" +
+                "SQL执行计划:\n" +
+                "TABLE ACCESS FULL DUAL\n" +
+                "执行时间: 1.25秒\n" +
+                "结果集数据:\n" +
+                "DUMMY\n" +
+                "X\n" +
+                "SQR结束执行: 2023-05-15 14:32:45\n");
+
+        Path detailedTimeResultTrace = createSampleTraceFile("detailed_time_result_trace.log",
+                "SQR开始执行: 2023-05-15 14:25:30\n" +
+                "程序: TEST.SQR\n" +
+                "执行SQL (14:25:31):\n" +
+                "SELECT * FROM DUAL\n" +
+                "执行时间: 1.25秒\n" +
+                "运行时间详情:\n" +
+                "解析: 0.25秒\n" +
+                "执行: 1.00秒\n" +
+                "结果集数据:\n" +
+                "DUMMY\n" +
+                "X\n" +
+                "SQR结束执行: 2023-05-15 14:32:45\n");
+
+        Path detailedAllTrace = createSampleTraceFile("detailed_all_trace.log",
+                "SQR开始执行: 2023-05-15 14:25:30\n" +
+                "程序: TEST.SQR\n" +
+                "执行SQL (14:25:31):\n" +
+                "SELECT * FROM DUAL\n" +
+                "SQL执行计划:\n" +
+                "TABLE ACCESS FULL DUAL\n" +
+                "执行时间: 1.25秒\n" +
+                "运行时间详情:\n" +
+                "解析: 0.25秒\n" +
+                "执行: 1.00秒\n" +
+                "结果集数据:\n" +
+                "DUMMY\n" +
+                "X\n" +
+                "SQR结束执行: 2023-05-15 14:32:45\n");
+
+        // Test format detection for single formats
         assertEquals(SQRTraceComparator.TraceFormat.STANDARD,
                 SQRTraceComparator.detectTraceFormat(standardTrace.toString()));
 
@@ -76,6 +133,19 @@ class SQRTraceComparatorTest {
 
         assertEquals(SQRTraceComparator.TraceFormat.DETAILED_RESULT,
                 SQRTraceComparator.detectTraceFormat(detailedResultTrace.toString()));
+
+        // Test format detection for mixed formats
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_SQL_TIME,
+                SQRTraceComparator.detectTraceFormat(detailedSqlTimeTrace.toString()));
+
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_SQL_RESULT,
+                SQRTraceComparator.detectTraceFormat(detailedSqlResultTrace.toString()));
+
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_TIME_RESULT,
+                SQRTraceComparator.detectTraceFormat(detailedTimeResultTrace.toString()));
+
+        assertEquals(SQRTraceComparator.TraceFormat.DETAILED_ALL,
+                SQRTraceComparator.detectTraceFormat(detailedAllTrace.toString()));
     }
 
     /**

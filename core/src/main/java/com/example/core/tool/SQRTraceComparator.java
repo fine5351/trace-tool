@@ -1,17 +1,18 @@
 package com.example.core.tool;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 
 /**
  * 一個用於比較不同環境中SQR跟蹤文件的工具。
@@ -43,16 +44,57 @@ import java.time.temporal.ChronoUnit;
  * java SQRTraceComparator sit_trace.log uat_trace.log SIT UAT sqr_comparison_result.csv
  * </pre>
  */
+@Slf4j
 public class SQRTraceComparator {
 
     /**
-     * 表示不同SQR跟蹤參數格式的枚舉
+     * 檢測SQR跟蹤文件的格式。
+     *
+     * @param filePath SQR跟蹤文件的路徑
+     * @return 檢測到的跟蹤格式
+     * @throws IOException 如果文件無法讀取
      */
-    public enum TraceFormat {
-        STANDARD,       // 包含基本信息的標準格式
-        DETAILED_SQL,   // 包含詳細SQL信息（-S參數）
-        DETAILED_TIME,  // 包含詳細時間信息（-RT參數）
-        DETAILED_RESULT // 包含詳細結果集信息（-RS參數）
+    public static TraceFormat detectTraceFormat(String filePath) throws IOException {
+        // 讀取更多行以提高檢測準確性，但限制在文件大小範圍內
+        long fileLineCount = Files.lines(Paths.get(filePath)).count();
+        int sampleSize = Math.min(500, (int) fileLineCount);
+        List<String> sampleLines = Files.readAllLines(Paths.get(filePath)).subList(0, sampleSize);
+
+        boolean hasDetailedSql = false;
+        boolean hasDetailedTime = false;
+        boolean hasDetailedResult = false;
+
+        // 擴展檢測模式以支持更多變體
+        for (String line : sampleLines) {
+            // SQL詳細信息檢測
+            if (line.contains("SQL执行计划") || line.contains("SQL执行详情") ||
+                line.contains("SQL statement") || line.contains("SQL语句") ||
+                line.contains("SQL统计信息") || line.contains("SQL execution plan")) {
+                hasDetailedSql = true;
+            }
+
+            // 時間詳細信息檢測
+            if (line.contains("运行时间详情") || line.contains("执行时间分析") ||
+                line.contains("时间分布") || line.contains("Time breakdown") ||
+                line.contains("Performance statistics") || line.contains("性能统计")) {
+                hasDetailedTime = true;
+            }
+
+            // 結果集詳細信息檢測
+            if (line.contains("结果集数据") || line.contains("返回数据详情") ||
+                line.contains("Result set") || line.contains("结果集") ||
+                line.contains("Returned rows") || line.contains("返回行数")) {
+                hasDetailedResult = true;
+            }
+
+            // 如果已經檢測到所有類型，可以提前結束
+            if (hasDetailedSql && hasDetailedTime && hasDetailedResult) {
+                break;
+            }
+        }
+
+        // 使用新的工廠方法創建適當的TraceFormat
+        return TraceFormat.fromFeatures(hasDetailedSql, hasDetailedTime, hasDetailedResult);
     }
 
     static class TraceEntry {
@@ -84,43 +126,6 @@ public class SQRTraceComparator {
     }
 
     /**
-     * 檢測SQR跟蹤文件的格式。
-     *
-     * @param filePath SQR跟蹤文件的路徑
-     * @return 檢測到的跟蹤格式
-     * @throws IOException 如果文件無法讀取
-     */
-    public static TraceFormat detectTraceFormat(String filePath) throws IOException {
-        List<String> sampleLines = Files.readAllLines(Paths.get(filePath)).subList(0, Math.min(100, (int)Files.lines(Paths.get(filePath)).count()));
-
-        boolean hasDetailedSql = false;
-        boolean hasDetailedTime = false;
-        boolean hasDetailedResult = false;
-
-        for (String line : sampleLines) {
-            if (line.contains("SQL执行计划") || line.contains("SQL执行详情")) {
-                hasDetailedSql = true;
-            }
-            if (line.contains("运行时间详情") || line.contains("执行时间分析")) {
-                hasDetailedTime = true;
-            }
-            if (line.contains("结果集数据") || line.contains("返回数据详情")) {
-                hasDetailedResult = true;
-            }
-        }
-
-        if (hasDetailedResult) {
-            return TraceFormat.DETAILED_RESULT;
-        } else if (hasDetailedTime) {
-            return TraceFormat.DETAILED_TIME;
-        } else if (hasDetailedSql) {
-            return TraceFormat.DETAILED_SQL;
-        } else {
-            return TraceFormat.STANDARD;
-        }
-    }
-
-    /**
      * 解析SQR跟蹤文件並提取跟蹤條目。
      *
      * @param filePath SQR跟蹤文件的路徑
@@ -132,7 +137,7 @@ public class SQRTraceComparator {
         List<TraceEntry> entries = new ArrayList<>();
         List<String> lines = Files.readAllLines(Paths.get(filePath));
 
-        System.out.println("Detected trace format: " + format);
+        log.info("Detected trace format: {}", format);
 
         // 不同跟蹤條目類型的模式
         Pattern programStartPattern = Pattern.compile("SQR开始执行: (\\d{4}-\\d{2}-\\d{2} (\\d{2}:\\d{2}:\\d{2}))");
@@ -143,18 +148,18 @@ public class SQRTraceComparator {
         Pattern sqlEndPattern = Pattern.compile("执行时间: ([\\d.]+)秒");
 
         // 詳細SQL格式的額外模式
-        Pattern sqlPlanPattern = format == TraceFormat.DETAILED_SQL ?
-                Pattern.compile("SQL执行计划:") : null;
-        Pattern sqlStatsPattern = format == TraceFormat.DETAILED_SQL ?
-                Pattern.compile("SQL统计信息:") : null;
+        Pattern sqlPlanPattern = format.hasDetailedSql() ?
+                Pattern.compile("SQL执行计划:|SQL execution plan:|SQL Plan:") : null;
+        Pattern sqlStatsPattern = format.hasDetailedSql() ?
+                Pattern.compile("SQL统计信息:|SQL statistics:|SQL Stats:") : null;
 
         // 詳細時間格式的額外模式
-        Pattern timeBreakdownPattern = format == TraceFormat.DETAILED_TIME ?
-                Pattern.compile("时间分布:") : null;
+        Pattern timeBreakdownPattern = format.hasDetailedTime() ?
+                Pattern.compile("时间分布:|Time breakdown:|Performance details:") : null;
 
         // 詳細結果格式的額外模式
-        Pattern resultSetPattern = format == TraceFormat.DETAILED_RESULT ?
-                Pattern.compile("结果集:") : null;
+        Pattern resultSetPattern = format.hasDetailedResult() ?
+                Pattern.compile("结果集:|Result set:|Returned data:") : null;
 
         Pattern procStartPattern = Pattern.compile("开始过程: (.+) \\((\\d{2}:\\d{2}:\\d{2})\\)");
         Pattern procEndPattern = Pattern.compile("结束过程: (.+) \\((\\d{2}:\\d{2}:\\d{2})\\)");
@@ -235,8 +240,8 @@ public class SQRTraceComparator {
                 continue;
             }
 
-            // SQL執行計劃（用於DETAILED_SQL格式）
-            if (format == TraceFormat.DETAILED_SQL && sqlPlanPattern != null) {
+            // SQL執行計劃（用於包含詳細SQL信息的格式）
+            if (format.hasDetailedSql() && sqlPlanPattern != null) {
                 Matcher sqlPlanMatcher = sqlPlanPattern.matcher(line);
                 if (sqlPlanMatcher.find()) {
                     collectingSqlPlan = true;
@@ -245,8 +250,8 @@ public class SQRTraceComparator {
                 }
             }
 
-            // SQL統計信息（用於DETAILED_SQL格式）
-            if (format == TraceFormat.DETAILED_SQL && sqlStatsPattern != null) {
+            // SQL統計信息（用於包含詳細SQL信息的格式）
+            if (format.hasDetailedSql() && sqlStatsPattern != null) {
                 Matcher sqlStatsMatcher = sqlStatsPattern.matcher(line);
                 if (sqlStatsMatcher.find()) {
                     collectingSqlPlan = false; // 如果正在收集計劃，則結束收集
@@ -256,8 +261,8 @@ public class SQRTraceComparator {
                 }
             }
 
-            // 結果集（用於DETAILED_RESULT格式）
-            if (format == TraceFormat.DETAILED_RESULT && resultSetPattern != null) {
+            // 結果集（用於包含詳細結果集信息的格式）
+            if (format.hasDetailedResult() && resultSetPattern != null) {
                 Matcher resultSetMatcher = resultSetPattern.matcher(line);
                 if (resultSetMatcher.find()) {
                     collectingResultSet = true;
@@ -280,8 +285,8 @@ public class SQRTraceComparator {
                         entry.content = currentSql.toString().trim();
                         entry.endTime = entry.startTime + durationMillis;
 
-                        // 如果我們處於詳細時間格式，尋找時間分解
-                        if (format == TraceFormat.DETAILED_TIME && timeBreakdownPattern != null) {
+                        // 如果我們處於包含詳細時間信息的格式，尋找時間分解
+                        if (format.hasDetailedTime() && timeBreakdownPattern != null) {
                             // 向前查找時間分解
                             for (int j = i + 1; j < Math.min(i + 10, lines.size()); j++) {
                                 Matcher timeBreakdownMatcher = timeBreakdownPattern.matcher(lines.get(j));
@@ -400,8 +405,8 @@ public class SQRTraceComparator {
                         entry.metadata.put("reportedDuration", seconds * 1000L); // Convert to milliseconds
                     }
 
-                    // If we're in detailed time format, look for time breakdown
-                    if (format == TraceFormat.DETAILED_TIME && timeBreakdownPattern != null) {
+                    // If we're in a format with detailed time information, look for time breakdown
+                    if (format.hasDetailedTime() && timeBreakdownPattern != null) {
                         // Look ahead for time breakdown
                         for (int j = i + 1; j < Math.min(i + 10, lines.size()); j++) {
                             Matcher timeBreakdownMatcher = timeBreakdownPattern.matcher(lines.get(j));
@@ -448,25 +453,6 @@ public class SQRTraceComparator {
     }
 
     /**
-     * Parse time string to milliseconds since midnight.
-     *
-     * @param timeStr Time string in format HH:MM:SS or HH:MM:SS.SSS
-     * @return Milliseconds since midnight
-     */
-    private static long parseTimeToMillis(String timeStr) {
-        // Handle both formats: HH:MM:SS and HH:MM:SS.SSS
-        DateTimeFormatter formatter;
-        if (timeStr.contains(".")) {
-            formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
-        } else {
-            formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-        }
-
-        LocalTime time = LocalTime.parse(timeStr, formatter);
-        return time.toNanoOfDay() / 1_000_000; // Convert nanoseconds to milliseconds
-    }
-
-    /**
      * Compare two trace files and output the differences.
      *
      * @param env1Entries Trace entries from first environment
@@ -491,9 +477,8 @@ public class SQRTraceComparator {
         List<String> outputLines = new ArrayList<>();
         outputLines.add("Type,Identifier," + env1Name + "(ms)," + env2Name + "(ms),Diff(ms),Diff(%),Flag,Details");
 
-        System.out.printf("%-10s %-50s %-15s %-15s %-10s %-10s %-10s %-20s\n",
-                "Type", "Identifier", env1Name + " (ms)", env2Name + " (ms)", "Diff", "Diff(%)", "Flag", "Details");
-        System.out.println("=".repeat(140));
+        log.info("Type        Identifier                                        {} (ms)       {} (ms)       Diff      Diff(%)    Flag      Details", env1Name, env2Name);
+        log.info("{}", "=".repeat(140));
 
         // Create detailed report file
         List<String> detailedReport = new ArrayList<>();
@@ -618,7 +603,7 @@ public class SQRTraceComparator {
                     detailsStr = detailsStr.substring(0, detailsStr.length() - 2);
                 }
 
-                System.out.printf("%-10s %-50s %-15d %-15d %-10d %-10.2f %-10s %-20s\n",
+                log.info("{} {} {} {} {} {:.2f} {} {}",
                         env2Entry.type, env2Entry.identifier, env1Time, env2Time, diff, diffPercent, flag,
                         detailsStr.length() > 20 ? detailsStr.substring(0, 17) + "..." : detailsStr);
 
@@ -638,7 +623,7 @@ public class SQRTraceComparator {
                 }
             } else {
                 // Entry only exists in env2
-                System.out.printf("%-10s %-50s %-15s %-15d %-10s %-10s %-10s %-20s\n",
+                log.info("{} {} {} {} {} {} {} {}",
                         env2Entry.type, env2Entry.identifier, "N/A", env2Entry.duration(), "N/A", "N/A", "UNIQUE", "");
 
                 outputLines.add(String.format("%s,%s,%s,%d,%s,%s,%s,%s",
@@ -680,6 +665,77 @@ public class SQRTraceComparator {
         String detailedReportPath = outputPath.replace(".csv", "_detailed.md");
         Files.write(Paths.get(detailedReportPath), detailedReport);
         System.out.println("詳細報告已輸出到 " + detailedReportPath);
+    }
+
+    /**
+     * Parse time string to milliseconds since midnight.
+     *
+     * @param timeStr Time string in format HH:MM:SS or HH:MM:SS.SSS
+     * @return Milliseconds since midnight
+     */
+    private static long parseTimeToMillis(String timeStr) {
+        // Handle both formats: HH:MM:SS and HH:MM:SS.SSS
+        DateTimeFormatter formatter;
+        if (timeStr.contains(".")) {
+            formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+        } else {
+            formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+        }
+
+        LocalTime time = LocalTime.parse(timeStr, formatter);
+        return time.toNanoOfDay() / 1_000_000; // Convert nanoseconds to milliseconds
+    }
+
+    /**
+     * 表示不同SQR跟蹤參數格式的枚舉
+     * 使用位運算支持混合格式
+     */
+    public enum TraceFormat {
+        STANDARD(0),       // 包含基本信息的標準格式
+        DETAILED_SQL(1),   // 包含詳細SQL信息（-S參數）
+        DETAILED_TIME(2),  // 包含詳細時間信息（-RT參數）
+        DETAILED_RESULT(4), // 包含詳細結果集信息（-RS參數）
+        // 混合格式
+        DETAILED_SQL_TIME(3),      // SQL + 時間 (-S -RT)
+        DETAILED_SQL_RESULT(5),    // SQL + 結果 (-S -RS)
+        DETAILED_TIME_RESULT(6),   // 時間 + 結果 (-RT -RS)
+        DETAILED_ALL(7);           // 所有詳細信息 (-S -RT -RS)
+
+        private final int value;
+
+        TraceFormat(int value) {
+            this.value = value;
+        }
+
+        public static TraceFormat fromFeatures(boolean hasDetailedSql, boolean hasDetailedTime, boolean hasDetailedResult) {
+            int value = 0;
+            if (hasDetailedSql) value |= DETAILED_SQL.value;
+            if (hasDetailedTime) value |= DETAILED_TIME.value;
+            if (hasDetailedResult) value |= DETAILED_RESULT.value;
+
+            for (TraceFormat format : values()) {
+                if (format.value == value) {
+                    return format;
+                }
+            }
+            return STANDARD;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        public boolean hasDetailedSql() {
+            return (value & DETAILED_SQL.value) != 0;
+        }
+
+        public boolean hasDetailedTime() {
+            return (value & DETAILED_TIME.value) != 0;
+        }
+
+        public boolean hasDetailedResult() {
+            return (value & DETAILED_RESULT.value) != 0;
+        }
     }
 
     /**
