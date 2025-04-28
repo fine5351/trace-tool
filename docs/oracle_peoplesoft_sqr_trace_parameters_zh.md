@@ -260,6 +260,315 @@ begin-procedure end-timer($timer_name)
 end-procedure
 ```
 
+## SQR跟踪参数组合及其效果
+
+不同的跟踪参数可以组合使用，以获取更全面的调试信息。以下是常用的参数组合、它们的效果以及产生的输出示例：
+
+### 基本参数组合
+
+| 参数组合          | 描述                | 适用场景     | 输出文件大小 | 性能影响 |
+|---------------|-------------------|----------|--------|------|
+| `-SQRTRACE 1` | 基本程序流程和错误         | 一般性问题排查  | 小      | 低    |
+| `-SQRTRACE 2` | 包括SQL语句           | 数据库相关问题  | 中      | 中    |
+| `-SQRTRACE 3` | 包括变量值和中间结果        | 数据计算问题   | 大      | 高    |
+| `-SQRTRACE 4` | 最详细，包括所有操作和内存使用情况 | 复杂问题深入分析 | 非常大    | 非常高  |
+| `-DEBUG Y`    | 调试模式，显示详细执行信息     | 开发和测试阶段  | 中      | 中    |
+| `-S`          | 显示SQL语句           | SQL相关问题  | 中      | 低    |
+| `-RS`         | 显示SQL结果集          | 数据问题     | 大      | 中    |
+| `-RT`         | 显示运行时间            | 性能问题     | 小      | 低    |
+
+### 高级参数组合
+
+| 参数组合                     | 描述                     | 适用场景      | 输出示例                               |
+|--------------------------|------------------------|-----------|------------------------------------|
+| `-SQRTRACE 2 -S`         | 详细SQL执行信息，包括SQL语句和执行计划 | SQL性能问题   | [见下文](#sqrtrace-2--s-输出示例)         |
+| `-SQRTRACE 2 -RT`        | SQL语句及其执行时间            | SQL性能瓶颈识别 | [见下文](#sqrtrace-2--rt-输出示例)        |
+| `-SQRTRACE 3 -RS`        | 变量值、中间结果和SQL结果集        | 数据计算和转换问题 | [见下文](#sqrtrace-3--rs-输出示例)        |
+| `-SQRTRACE 3 -S -RT`     | 变量值、SQL语句和执行时间         | 全面性能分析    | [见下文](#sqrtrace-3--s--rt-输出示例)     |
+| `-SQRTRACE 3 -S -RS`     | 变量值、SQL语句和结果集          | 数据流问题     | [见下文](#sqrtrace-3--s--rs-输出示例)     |
+| `-SQRTRACE 4 -S -RT -RS` | 最全面的跟踪信息               | 复杂问题的深入分析 | [见下文](#sqrtrace-4--s--rt--rs-输出示例) |
+| `-DEBUG abcde -S`        | 特定调试标志与SQL跟踪结合         | 针对性调试     | [见下文](#debug-abcde--s-输出示例)        |
+
+### 参数组合输出示例
+
+#### `-SQRTRACE 2 -S` 输出示例
+
+此组合提供SQL语句及其执行计划，适合分析SQL性能问题：
+
+```
+执行SQL (14:25:31):
+SELECT FIELD1, FIELD2 FROM PS_EXAMPLE_TABLE WHERE FIELD3 = 'VALUE'
+
+SQL执行计划:
+OPERATION                  OPTIONS           OBJECT_NAME
+-----------------------------------------------------------
+TABLE ACCESS               BY INDEX ROWID    PS_EXAMPLE_TABLE
+  INDEX                    RANGE SCAN        PS_EXAMPLE_IDX
+
+返回行数: 150
+执行时间: 1.25秒
+```
+
+#### `-SQRTRACE 2 -RT` 输出示例
+
+此组合提供SQL语句及其执行时间，适合识别性能瓶颈：
+
+```
+开始过程: PROCESS_DATA (14:26:05)
+
+执行SQL (14:26:07):
+SELECT COUNT(*) FROM PS_EXAMPLE_TABLE
+返回行数: 1
+执行时间: 0.35秒
+
+执行SQL (14:26:10):
+SELECT SUM(AMOUNT) FROM PS_EXAMPLE_TABLE WHERE DEPTID = '10000'
+返回行数: 1
+执行时间: 2.75秒
+
+结束过程: PROCESS_DATA (14:26:15)
+过程执行时间: 10秒
+
+时间分布:
+SQL查询: 7.5秒 (75%)
+数据处理: 2.0秒 (20%)
+其他操作: 0.5秒 (5%)
+```
+
+#### `-SQRTRACE 3 -RS` 输出示例
+
+此组合提供变量值、中间结果和SQL结果集，适合分析数据计算和转换问题：
+
+```
+变量赋值 (14:26:10):
+$TOTAL_AMOUNT = 15250.75
+
+执行SQL (14:26:12):
+SELECT DEPTID, SUM(AMOUNT) FROM PS_EXAMPLE_TABLE GROUP BY DEPTID
+返回行数: 5
+
+结果集:
+DEPTID    SUM(AMOUNT)
+-----------------------
+10000     5250.50
+20000     3500.25
+30000     2750.00
+40000     2500.00
+50000     1250.00
+
+变量赋值 (14:26:15):
+$DEPT_COUNT = 5
+```
+
+#### `-SQRTRACE 3 -S -RT` 输出示例
+
+此组合提供变量值、SQL语句和执行时间，适合全面性能分析：
+
+```
+变量赋值 (14:26:10):
+$DEPTID = '10000'
+
+执行SQL (14:26:12):
+SELECT EMPLID, NAME, SALARY FROM PS_EMPLOYEE WHERE DEPTID = '10000'
+
+SQL执行计划:
+OPERATION                  OPTIONS           OBJECT_NAME
+-----------------------------------------------------------
+TABLE ACCESS               BY INDEX ROWID    PS_EMPLOYEE
+  INDEX                    RANGE SCAN        PS_EMPLOYEE_DEPTID
+
+返回行数: 25
+执行时间: 0.85秒
+
+时间分布:
+索引扫描: 0.15秒 (17.6%)
+表访问: 0.65秒 (76.5%)
+结果处理: 0.05秒 (5.9%)
+```
+
+#### `-SQRTRACE 3 -S -RS` 输出示例
+
+此组合提供变量值、SQL语句和结果集，适合分析数据流问题：
+
+```
+变量赋值 (14:26:10):
+$FISCAL_YEAR = '2023'
+
+执行SQL (14:26:12):
+SELECT DEPTID, SUM(BUDGET_AMT) FROM PS_DEPT_BUDGET 
+WHERE FISCAL_YEAR = '2023' GROUP BY DEPTID
+
+SQL执行计划:
+OPERATION                  OPTIONS           OBJECT_NAME
+-----------------------------------------------------------
+SORT                       GROUP BY          
+  TABLE ACCESS             FULL              PS_DEPT_BUDGET
+    FILTER                                   
+
+返回行数: 3
+
+结果集:
+DEPTID    SUM(BUDGET_AMT)
+--------------------------
+10000     1000000.00
+20000     750000.00
+30000     500000.00
+
+变量赋值 (14:26:15):
+$TOTAL_BUDGET = 2250000.00
+```
+
+#### `-SQRTRACE 4 -S -RT -RS` 输出示例
+
+此组合提供最全面的跟踪信息，适合复杂问题的深入分析：
+
+```
+SQR开始执行: 2023-05-15 14:25:30
+程序: BUDGET_REPORT.SQR
+用户: PS
+数据库: PSFT_HR
+
+内存分配: 初始堆大小 = 8MB
+
+开始过程: MAIN (14:25:31)
+
+变量初始化 (14:25:32):
+$FISCAL_YEAR = '2023'
+$INCLUDE_INACTIVE = 'N'
+#MAX_ROWS = 1000
+
+执行SQL (14:25:35):
+SELECT DEPTID, DESCR FROM PS_DEPT_TBL WHERE EFFDT = 
+(SELECT MAX(EFFDT) FROM PS_DEPT_TBL B WHERE B.DEPTID = PS_DEPT_TBL.DEPTID AND EFFDT <= SYSDATE)
+AND ($INCLUDE_INACTIVE = 'Y' OR EFF_STATUS = 'A')
+
+SQL执行计划:
+OPERATION                  OPTIONS           OBJECT_NAME
+-----------------------------------------------------------
+HASH JOIN                                    
+  TABLE ACCESS             FULL              PS_DEPT_TBL
+  VIEW                                       
+    SORT                   UNIQUE            
+      TABLE ACCESS         FULL              PS_DEPT_TBL
+
+SQL统计信息:
+缓冲区获取: 250
+磁盘读取: 15
+CPU时间: 0.25秒
+等待事件: db file sequential read (5次, 总计0.15秒)
+
+返回行数: 50
+执行时间: 0.75秒
+
+结果集:
+DEPTID    DESCR
+-----------------------
+10000     FINANCE
+20000     HUMAN RESOURCES
+30000     INFORMATION TECHNOLOGY
+...
+
+时间分布:
+SQL执行: 0.55秒 (73.3%)
+结果处理: 0.15秒 (20.0%)
+其他操作: 0.05秒 (6.7%)
+
+内存使用: 当前堆大小 = 12MB, 增加4MB
+
+开始过程: PROCESS_DEPT_BUDGETS (14:25:40)
+
+执行SQL (14:25:42):
+SELECT ACCOUNT, SUM(BUDGET_AMT) FROM PS_DEPT_BUDGET 
+WHERE FISCAL_YEAR = '2023' AND DEPTID = '10000'
+GROUP BY ACCOUNT
+
+SQL执行计划:
+OPERATION                  OPTIONS           OBJECT_NAME
+-----------------------------------------------------------
+SORT                       GROUP BY          
+  TABLE ACCESS             BY INDEX ROWID    PS_DEPT_BUDGET
+    INDEX                  RANGE SCAN        PS_DEPT_BDG_IDX
+
+SQL统计信息:
+缓冲区获取: 120
+磁盘读取: 5
+CPU时间: 0.15秒
+
+返回行数: 15
+执行时间: 0.45秒
+
+结果集:
+ACCOUNT    SUM(BUDGET_AMT)
+----------------------------
+50010      500000.00
+50020      300000.00
+50030      200000.00
+...
+
+结束过程: PROCESS_DEPT_BUDGETS (14:25:45)
+过程执行时间: 5秒
+
+结束过程: MAIN (14:25:50)
+过程执行时间: 19秒
+
+SQR结束执行: 2023-05-15 14:25:50
+总运行时间: 00:00:20
+
+内存使用摘要:
+最大堆大小: 15MB
+总分配: 25MB
+总释放: 10MB
+```
+
+#### `-DEBUG abcde -S` 输出示例
+
+此组合使用特定调试标志与SQL跟踪结合，适合针对性调试：
+
+```
+[DEBUG-a] 进入过程: MAIN
+[DEBUG-b] 变量初始化: $FISCAL_YEAR = '2023'
+[DEBUG-b] 变量初始化: $INCLUDE_INACTIVE = 'N'
+[DEBUG-c] 执行SQL: SELECT DEPTID, DESCR FROM PS_DEPT_TBL WHERE EFFDT = 
+(SELECT MAX(EFFDT) FROM PS_DEPT_TBL B WHERE B.DEPTID = PS_DEPT_TBL.DEPTID AND EFFDT <= SYSDATE)
+AND ('N' = 'Y' OR EFF_STATUS = 'A')
+[DEBUG-d] SQL返回行数: 50
+[DEBUG-e] 当前内存使用: 12MB
+
+[DEBUG-a] 进入过程: PROCESS_DEPT_BUDGETS
+[DEBUG-b] 参数: $DEPTID = '10000'
+[DEBUG-c] 执行SQL: SELECT ACCOUNT, SUM(BUDGET_AMT) FROM PS_DEPT_BUDGET 
+WHERE FISCAL_YEAR = '2023' AND DEPTID = '10000'
+GROUP BY ACCOUNT
+[DEBUG-d] SQL返回行数: 15
+[DEBUG-a] 退出过程: PROCESS_DEPT_BUDGETS
+
+[DEBUG-a] 退出过程: MAIN
+```
+
+### 参数组合选择指南
+
+1. **性能问题排查**
+    - 推荐组合: `-SQRTRACE 2 -S -RT`
+    - 关注点: SQL执行时间、执行计划、时间分布
+
+2. **数据问题排查**
+    - 推荐组合: `-SQRTRACE 3 -S -RS`
+    - 关注点: SQL语句、结果集、变量值
+
+3. **程序逻辑问题**
+    - 推荐组合: `-SQRTRACE 3 -DEBUG Y`
+    - 关注点: 程序流程、条件判断、变量值
+
+4. **全面分析**
+    - 推荐组合: `-SQRTRACE 4 -S -RT -RS`
+    - 关注点: 所有方面，但注意文件大小和性能影响
+
+5. **针对性调试**
+    - 推荐组合: `-DEBUG` 加特定标志（如`-DEBUG abcde`）
+    - 关注点: 根据选择的调试标志定制输出
+
+选择合适的参数组合时，应平衡调试需求与性能影响。在生产环境中，建议使用较低级别的跟踪参数，或者仅在必要时短暂启用高级别跟踪。
+
 ## 结论
 
 PeopleSoft SQR跟踪参数提供了对SQR程序执行和性能的宝贵见解。通过正确配置跟踪参数并使用适当的分析方法，您可以识别性能瓶颈，解决数据问题，并优化您的SQR报表和批处理程序。

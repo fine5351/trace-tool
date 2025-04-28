@@ -154,6 +154,218 @@ FUNC: GetField#1                                          75             95     
    - 在生产环境中降低跟踪级别
    - 考虑仅跟踪特定步骤或部分
 
+## 应用引擎跟踪参数组合及其效果
+
+不同的跟踪参数可以组合使用，以获取更全面的调试信息。以下是常用的参数组合、它们的效果以及产生的输出示例：
+
+### 基本参数组合
+
+| 参数组合               | 描述                  | 适用场景    | 输出文件大小 | 性能影响 |
+|--------------------|---------------------|---------|--------|------|
+| `-TRACE 1`         | 基本程序流程和错误           | 一般性问题排查 | 小      | 低    |
+| `-TRACE 2`         | 包括SQL语句和步骤执行        | 数据库相关问题 | 中      | 中    |
+| `-TRACE 3`         | 详细的SQL和PeopleCode信息 | 复杂问题分析  | 大      | 高    |
+| `-TRACE 4`         | 最详细，包括所有操作和内存使用情况   | 深入调试    | 非常大    | 非常高  |
+| `-DBFLAGS 1`       | 仅SQL语句              | SQL语法问题 | 小      | 低    |
+| `-DBFLAGS 3`       | SQL语句和变量            | 数据绑定问题  | 中      | 低    |
+| `-TOOLSTRACESQL 1` | 仅SQL语句              | SQL语法问题 | 小      | 低    |
+| `-TOOLSTRACEPC 1`  | 程序启动                | 初始化问题   | 小      | 低    |
+| `-TOOLSTRACEPC 3`  | 程序启动和函数调用           | 函数执行问题  | 中      | 中    |
+
+### 高级参数组合
+
+| 参数组合                                          | 描述                  | 适用场景           | 输出示例                                                    |
+|-----------------------------------------------|---------------------|----------------|---------------------------------------------------------|
+| `-TRACE 2 -DBFLAGS 3`                         | 步骤执行和SQL语句（含变量）     | SQL执行问题        | [见下文](#trace-2--dbflags-3-输出示例)                         |
+| `-TRACE 2 -TOOLSTRACESQL 3`                   | 步骤执行和SQL语句（含变量）     | SQL执行问题        | [见下文](#trace-2--toolstracesql-3-输出示例)                   |
+| `-TRACE 3 -TOOLSTRACEPC 3`                    | 详细步骤和PeopleCode函数调用 | PeopleCode执行问题 | [见下文](#trace-3--toolstracepc-3-输出示例)                    |
+| `-TRACE 3 -TOOLSTRACEPC 7`                    | 详细步骤、函数调用和变量赋值      | 数据处理问题         | [见下文](#trace-3--toolstracepc-7-输出示例)                    |
+| `-TRACE 3 -TOOLSTRACESQL 7`                   | 详细步骤、SQL语句和变量       | 数据库交互问题        | [见下文](#trace-3--toolstracesql-7-输出示例)                   |
+| `-TRACE 3 -TOOLSTRACESQL 7 -TOOLSTRACEPC 7`   | 全面的SQL和PeopleCode跟踪 | 复杂问题的深入分析      | [见下文](#trace-3--toolstracesql-7--toolstracepc-7-输出示例)   |
+| `-TRACE 4 -TOOLSTRACESQL 31 -TOOLSTRACEPC 31` | 最详细的跟踪信息            | 系统级问题排查        | [见下文](#trace-4--toolstracesql-31--toolstracepc-31-输出示例) |
+
+### 参数组合输出示例
+
+#### `-TRACE 2 -DBFLAGS 3` 输出示例
+
+此组合提供步骤执行和SQL语句（含变量）信息，适合分析SQL执行问题：
+
+```
+14:25:30.156 (2426) Begin Step: EXAMPLE.MAIN.GBL.Step01
+14:25:31.203 (2426) (SQLExec) SELECT FIELD1, FIELD2 FROM PS_EXAMPLE_TABLE WHERE FIELD3 = :1
+14:25:31.250 (2426) Bind-Variables: 1=VALUE
+14:25:32.438 (2426) End Step: EXAMPLE.MAIN.GBL.Step01
+```
+
+#### `-TRACE 2 -TOOLSTRACESQL 3` 输出示例
+
+此组合提供步骤执行和SQL语句（含变量）信息，功能类似于`-TRACE 2 -DBFLAGS 3`但使用PeopleTools SQL跟踪：
+
+```
+14:25:30.156 (2426) Begin Step: EXAMPLE.MAIN.GBL.Step01
+14:25:31.203 (2426) (SQLExec) SELECT FIELD1, FIELD2 FROM PS_EXAMPLE_TABLE WHERE FIELD3 = :1
+14:25:31.250 (2426) Bind-Variables: 1=VALUE
+14:25:31.875 (2426) Rows fetched: 10
+14:25:32.438 (2426) End Step: EXAMPLE.MAIN.GBL.Step01
+```
+
+#### `-TRACE 3 -TOOLSTRACEPC 3` 输出示例
+
+此组合提供详细步骤和PeopleCode函数调用信息，适合分析PeopleCode执行问题：
+
+```
+14:25:30.156 (2426) Begin Step: EXAMPLE.MAIN.GBL.Step01
+14:25:30.203 (2426) Executing PeopleCode in EXAMPLE.MAIN FieldFormula
+14:25:30.250 (2426) Function: GetField
+14:25:30.328 (2426) Function: GetNextRecord
+14:25:31.203 (2426) (SQLExec) SELECT FIELD1, FIELD2 FROM PS_EXAMPLE_TABLE WHERE FIELD3 = :1
+14:25:31.250 (2426) Bind-Variables: 1=VALUE
+14:25:32.438 (2426) End Step: EXAMPLE.MAIN.GBL.Step01
+```
+
+#### `-TRACE 3 -TOOLSTRACEPC 7` 输出示例
+
+此组合提供详细步骤、函数调用和变量赋值信息，适合分析数据处理问题：
+
+```
+14:25:30.156 (2426) Begin Step: EXAMPLE.MAIN.GBL.Step01
+14:25:30.203 (2426) Executing PeopleCode in EXAMPLE.MAIN FieldFormula
+14:25:30.250 (2426) Function: GetField
+14:25:30.275 (2426) Variable &DEPTID = "10000"
+14:25:30.328 (2426) Function: GetNextRecord
+14:25:30.350 (2426) Variable &FOUND = True
+14:25:31.203 (2426) (SQLExec) SELECT FIELD1, FIELD2 FROM PS_EXAMPLE_TABLE WHERE FIELD3 = :1
+14:25:31.250 (2426) Bind-Variables: 1=VALUE
+14:25:32.438 (2426) End Step: EXAMPLE.MAIN.GBL.Step01
+```
+
+#### `-TRACE 3 -TOOLSTRACESQL 7` 输出示例
+
+此组合提供详细步骤、SQL语句和变量信息，适合分析数据库交互问题：
+
+```
+14:25:30.156 (2426) Begin Step: EXAMPLE.MAIN.GBL.Step01
+14:25:31.203 (2426) (SQLExec) SELECT FIELD1, FIELD2 FROM PS_EXAMPLE_TABLE WHERE FIELD3 = :1
+14:25:31.250 (2426) Bind-Variables: 1=VALUE
+14:25:31.875 (2426) Rows fetched: 10
+14:25:31.900 (2426) Column values:
+14:25:31.901 (2426) FIELD1=10000, FIELD2=Finance
+14:25:31.902 (2426) FIELD1=20000, FIELD2=HR
+14:25:31.903 (2426) FIELD1=30000, FIELD2=IT
+14:25:32.000 (2426) (SQLExec) COMMIT
+14:25:32.438 (2426) End Step: EXAMPLE.MAIN.GBL.Step01
+```
+
+#### `-TRACE 3 -TOOLSTRACESQL 7 -TOOLSTRACEPC 7` 输出示例
+
+此组合提供全面的SQL和PeopleCode跟踪，适合复杂问题的深入分析：
+
+```
+14:25:30.156 (2426) Begin Step: EXAMPLE.MAIN.GBL.Step01
+14:25:30.203 (2426) Executing PeopleCode in EXAMPLE.MAIN FieldFormula
+14:25:30.250 (2426) Function: GetField
+14:25:30.275 (2426) Variable &DEPTID = "10000"
+14:25:30.328 (2426) Function: GetNextRecord
+14:25:30.350 (2426) Variable &FOUND = True
+14:25:31.203 (2426) (SQLExec) SELECT FIELD1, FIELD2 FROM PS_EXAMPLE_TABLE WHERE FIELD3 = :1
+14:25:31.250 (2426) Bind-Variables: 1=VALUE
+14:25:31.875 (2426) Rows fetched: 10
+14:25:31.900 (2426) Column values:
+14:25:31.901 (2426) FIELD1=10000, FIELD2=Finance
+14:25:31.902 (2426) FIELD1=20000, FIELD2=HR
+14:25:31.903 (2426) FIELD1=30000, FIELD2=IT
+14:25:32.000 (2426) (SQLExec) COMMIT
+14:25:32.100 (2426) Function: SetNextRecord
+14:25:32.150 (2426) Variable &RESULT = True
+14:25:32.438 (2426) End Step: EXAMPLE.MAIN.GBL.Step01
+```
+
+#### `-TRACE 4 -TOOLSTRACESQL 31 -TOOLSTRACEPC 31` 输出示例
+
+此组合提供最详细的跟踪信息，适合系统级问题排查：
+
+```
+14:25:30.000 (2426) Application Engine program EXAMPLE.MAIN starting
+14:25:30.050 (2426) Memory allocation: Initial heap size = 8MB
+14:25:30.100 (2426) Database connection established: User=PS, Database=PSFT_HR
+14:25:30.156 (2426) Begin Step: EXAMPLE.MAIN.GBL.Step01
+14:25:30.203 (2426) Executing PeopleCode in EXAMPLE.MAIN FieldFormula
+14:25:30.220 (2426) PeopleCode program loaded from cache
+14:25:30.230 (2426) PeopleCode execution context initialized
+14:25:30.240 (2426) PeopleCode API version: 8.59.12
+14:25:30.250 (2426) Function: GetField
+14:25:30.260 (2426) Function parameters: DEPTID, RECORD.DEPT_TBL, 1
+14:25:30.275 (2426) Variable &DEPTID = "10000"
+14:25:30.280 (2426) Memory usage: Current heap = 12MB, +4MB
+14:25:30.328 (2426) Function: GetNextRecord
+14:25:30.340 (2426) Function parameters: RECORD.DEPT_TBL
+14:25:30.350 (2426) Variable &FOUND = True
+14:25:31.000 (2426) SQL statement preparation started
+14:25:31.100 (2426) SQL statement parsed
+14:25:31.150 (2426) SQL execution plan:
+14:25:31.151 (2426) OPERATION                  OPTIONS           OBJECT_NAME
+14:25:31.152 (2426) -----------------------------------------------------------
+14:25:31.153 (2426) TABLE ACCESS               BY INDEX ROWID    PS_EXAMPLE_TABLE
+14:25:31.154 (2426)   INDEX                    RANGE SCAN        PS_EXAMPLE_IDX
+14:25:31.203 (2426) (SQLExec) SELECT FIELD1, FIELD2 FROM PS_EXAMPLE_TABLE WHERE FIELD3 = :1
+14:25:31.250 (2426) Bind-Variables: 1=VALUE
+14:25:31.300 (2426) SQL statement execution started
+14:25:31.400 (2426) SQL buffer allocation: 256KB
+14:25:31.500 (2426) Database statistics:
+14:25:31.501 (2426) Buffer gets: 120
+14:25:31.502 (2426) Disk reads: 5
+14:25:31.503 (2426) CPU time: 0.15 seconds
+14:25:31.600 (2426) Wait events:
+14:25:31.601 (2426) db file sequential read (5 times, total 0.05 seconds)
+14:25:31.875 (2426) Rows fetched: 10
+14:25:31.900 (2426) Column values:
+14:25:31.901 (2426) FIELD1=10000, FIELD2=Finance
+14:25:31.902 (2426) FIELD1=20000, FIELD2=HR
+14:25:31.903 (2426) FIELD1=30000, FIELD2=IT
+14:25:32.000 (2426) (SQLExec) COMMIT
+14:25:32.050 (2426) Transaction committed
+14:25:32.100 (2426) Function: SetNextRecord
+14:25:32.110 (2426) Function parameters: RECORD.DEPT_TBL, &DEPT_REC
+14:25:32.150 (2426) Variable &RESULT = True
+14:25:32.200 (2426) Memory usage: Current heap = 14MB, +2MB
+14:25:32.438 (2426) End Step: EXAMPLE.MAIN.GBL.Step01
+14:25:32.500 (2426) Step execution time: 2.344 seconds
+14:25:32.550 (2426) Step performance breakdown:
+14:25:32.551 (2426) SQL execution: 1.2 seconds (51.2%)
+14:25:32.552 (2426) PeopleCode execution: 0.8 seconds (34.1%)
+14:25:32.553 (2426) Other operations: 0.344 seconds (14.7%)
+14:25:32.600 (2426) Application Engine program EXAMPLE.MAIN ending
+14:25:32.650 (2426) Total execution time: 2.65 seconds
+14:25:32.700 (2426) Memory usage summary:
+14:25:32.701 (2426) Peak heap size: 15MB
+14:25:32.702 (2426) Total allocated: 25MB
+14:25:32.703 (2426) Total freed: 10MB
+```
+
+### 参数组合选择指南
+
+1. **性能问题排查**
+   - 推荐组合: `-TRACE 3 -TOOLSTRACESQL 7`
+   - 关注点: SQL执行时间、行获取数量、提交/回滚操作
+
+2. **数据问题排查**
+   - 推荐组合: `-TRACE 3 -TOOLSTRACESQL 7 -TOOLSTRACEPC 7`
+   - 关注点: SQL语句、绑定变量、结果集、变量赋值
+
+3. **PeopleCode逻辑问题**
+   - 推荐组合: `-TRACE 3 -TOOLSTRACEPC 15`
+   - 关注点: 函数调用、变量赋值、内部函数调用
+
+4. **全面分析**
+   - 推荐组合: `-TRACE 4 -TOOLSTRACESQL 31 -TOOLSTRACEPC 31`
+   - 关注点: 所有方面，但注意文件大小和性能影响
+
+5. **特定步骤问题**
+   - 推荐组合: `-TRACE 3` 并在进程监视器中仅为特定步骤启用跟踪
+   - 关注点: 特定步骤的执行详情，减少跟踪文件大小
+
+选择合适的参数组合时，应平衡调试需求与性能影响。在生产环境中，建议使用较低级别的跟踪参数，或者仅在必要时短暂启用高级别跟踪。
+
 ## 结论
 
 PeopleSoft应用引擎跟踪参数提供了对进程执行和性能的宝贵见解。通过正确配置跟踪参数并使用AETraceComparator等分析工具，您可以识别性能瓶颈，比较环境，并优化您的PeopleSoft应用程序。
