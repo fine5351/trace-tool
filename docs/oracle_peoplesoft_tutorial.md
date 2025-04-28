@@ -217,17 +217,69 @@ PeopleSoft 提供了多種報表和查詢工具，幫助用戶分析和呈現數
     - 使用收藏夾和最近使用功能
     - 嘗試使用搜索功能找到特定頁面
 
+   **範例**：登入 PeopleSoft 系統並導航到人力資源模塊
+    ```
+    1. 打開瀏覽器，輸入 PeopleSoft 系統 URL：https://company.peoplesoft.com
+    2. 輸入用戶 ID：PS123456 和密碼：******
+    3. 點擊「登入」按鈕
+    4. 在主頁上，點擊左側導航菜單中的「人力資源」
+    5. 在展開的子菜單中，選擇「員工資料」>「個人資料」
+    6. 點擊頁面右上角的星形圖標，將此頁面添加到收藏夾
+    7. 使用頁面頂部的搜索框，輸入「薪資」並按 Enter 鍵
+    8. 從搜索結果中選擇「薪資管理」頁面
+    ```
+
 2. **基本數據操作**：
     - 查找現有記錄（如員工或客戶）
     - 查看記錄詳情
     - 嘗試修改記錄（如果有權限）
     - 創建新記錄（如果有權限）
 
+   **範例**：查找並更新員工記錄
+    ```
+    1. 導航至「人力資源」>「員工資料」>「個人資料」
+    2. 在搜索頁面，從「搜索方式」下拉列表選擇「姓名」
+    3. 在「姓名」欄位輸入「王小明」
+    4. 點擊「搜索」按鈕
+    5. 從結果列表中選擇正確的員工記錄
+    6. 查看員工詳細信息
+    7. 點擊「聯繫信息」頁籤
+    8. 點擊「電話號碼」部分的「編輯」按鈕
+    9. 更新手機號碼為「0912-345-678」
+    10. 點擊「保存」按鈕
+    11. 系統顯示「保存成功」消息
+    ```
+
 3. **報表和查詢**：
     - 運行預定義報表
     - 使用 PS/Query 創建簡單查詢
     - 將報表結果導出到 Excel
     - 保存查詢條件供將來使用
+
+   **範例**：創建並運行部門員工列表查詢
+    ```
+    1. 導航至「報表工具」>「查詢」>「查詢管理器」
+    2. 點擊「新建查詢」按鈕
+    3. 在「記錄」頁籤中，展開「人力資源」節點
+    4. 選擇「EMPLOYEE」記錄
+    5. 點擊「添加記錄」按鈕
+    6. 在「欄位」頁籤中，選擇以下欄位：
+       - EMPLID（員工 ID）
+       - NAME（姓名）
+       - DEPTID（部門 ID）
+       - JOBTITLE（職稱）
+       - HIRE_DT（雇用日期）
+    7. 在「條件」頁籤中，點擊「添加條件」
+    8. 選擇「DEPTID」欄位，運算符選擇「等於」
+    9. 值類型選擇「提示」，提示文本輸入「請輸入部門 ID」
+    10. 點擊「確定」按鈕
+    11. 點擊「運行」按鈕
+    12. 在提示框中輸入部門 ID「IT001」
+    13. 點擊「確定」按鈕
+    14. 查看查詢結果
+    15. 點擊「Excel」按鈕，將結果導出到 Excel
+    16. 點擊「保存」按鈕，將查詢命名為「部門員工列表」
+    ```
 
 ## 進階教學
 
@@ -480,11 +532,65 @@ PeopleSoft 提供了多種與其他系統集成的方法：
     - 測試工作流程執行
     - 監控工作流程狀態
 
+   **範例**：創建採購申請審批工作流程
+    ```
+    1. 導航至「PeopleTools」>「工作流程」>「業務流程」
+    2. 點擊「添加」按鈕創建新業務流程
+    3. 輸入業務流程名稱「採購申請審批」和描述
+    4. 在流程設計器中，添加以下活動：
+       - 開始：「提交採購申請」
+       - 審批：「部門經理審批」
+       - 條件：「金額檢查」（金額 >= 10000）
+       - 審批：「財務總監審批」（如果金額 >= 10000）
+       - 結束：「完成審批」
+    5. 連接活動，創建完整流程
+    6. 為每個審批活動設置角色：
+       - 「部門經理審批」分配給「部門經理」角色
+       - 「財務總監審批」分配給「財務總監」角色
+    7. 設置電子郵件通知：
+       - 導航至「PeopleTools」>「工作流程」>「通知」
+       - 創建「審批請求」通知模板
+       - 設置郵件主題：「採購申請 {REQUEST_ID} 等待您的審批」
+       - 設置郵件內容，包括申請詳情和審批鏈接
+    8. 將通知與審批活動關聯
+    9. 保存並激活工作流程
+    10. 測試工作流程：
+        - 提交測試採購申請
+        - 以部門經理身份登入，完成審批
+        - 如果金額 >= 10000，以財務總監身份登入，完成審批
+        - 在「工作流程監控」中查看流程狀態和歷史
+    ```
+
 2. **自定義頁面**：
     - 修改現有頁面添加新欄位
     - 創建自定義搜索頁面
     - 添加欄位級別驗證
     - 實現動態顯示邏輯
+
+   **範例**：自定義員工信息頁面
+    ```
+    1. 導航至「PeopleTools」>「應用設計器」
+    2. 打開「EMPLOYEE_DATA」頁面
+    3. 添加新欄位：
+       - 在「個人信息」部分添加「緊急聯繫人」欄位組
+       - 添加「姓名」、「關係」、「電話」三個欄位
+       - 設置欄位屬性和標籤
+    4. 添加欄位驗證：
+       - 為「電話」欄位添加 PeopleCode 驗證
+       - 編寫代碼檢查電話號碼格式（例如：必須為數字且長度為10位）
+       - 如果格式不正確，顯示錯誤消息
+    5. 實現動態顯示邏輯：
+       - 添加「有緊急聯繫人」複選框
+       - 編寫 FieldChange PeopleCode
+       - 當複選框選中時顯示緊急聯繫人欄位組
+       - 當複選框未選中時隱藏緊急聯繫人欄位組
+    6. 自定義搜索頁面：
+       - 創建新搜索記錄「EMPLOYEE_SRCH」
+       - 添加搜索欄位：「部門」、「職位」、「技能」
+       - 設置搜索欄位屬性和查詢條件
+       - 將搜索記錄與員工組件關聯
+    7. 保存並測試修改後的頁面
+    ```
 
 3. **批處理開發**：
     - 創建應用引擎程序處理數據
@@ -492,11 +598,82 @@ PeopleSoft 提供了多種與其他系統集成的方法：
     - 安排定期執行
     - 監控執行結果和日誌
 
+   **範例**：開發月度薪資計算批處理
+    ```
+    1. 導航至「PeopleTools」>「應用設計器」>「新建」>「應用引擎」
+    2. 創建新應用引擎程序「MONTHLY_SALARY_CALC」
+    3. 創建運行控制記錄：
+       - 添加「部門ID」和「計算月份」參數
+       - 設置參數屬性和默認值
+    4. 設計應用引擎步驟：
+       - 第1步：獲取運行控制參數
+       - 第2步：清除臨時表數據
+       - 第3步：從員工主表選擇符合條件的員工
+       - 第4步：計算基本薪資
+       - 第5步：計算加班費
+       - 第6步：計算獎金和扣除項
+       - 第7步：更新薪資結果表
+       - 第8步：生成薪資報表
+    5. 為每個步驟編寫 SQL 和 PeopleCode：
+       - 使用參數化查詢
+       - 添加錯誤處理和日誌記錄
+       - 實現事務管理和提交點
+    6. 設置安全性和權限
+    7. 安排定期執行：
+       - 導航至「PeopleTools」>「進程調度器」>「定期進程」
+       - 創建新定期進程「月度薪資計算」
+       - 設置運行頻率為「每月最後一天」
+       - 設置通知選項
+    8. 測試批處理程序：
+       - 使用測試數據運行程序
+       - 檢查結果和日誌
+       - 驗證計算準確性
+    ```
+
 4. **報表開發**：
     - 使用 PS/Query 創建自定義報表
     - 設計 BI Publisher 報表模板
     - 開發 SQR 報表
     - 配置報表分發和通知
+
+   **範例**：創建部門薪資分析報表
+    ```
+    1. 使用 PS/Query 創建基礎查詢：
+       - 導航至「報表工具」>「查詢」>「查詢管理器」
+       - 創建新查詢「DEPT_SALARY_ANALYSIS」
+       - 添加以下記錄：EMPLOYEES、JOB_DATA、DEPARTMENT
+       - 選擇欄位：部門ID、部門名稱、員工ID、姓名、職位、薪資等級、基本薪資
+       - 添加匯總計算：部門平均薪資、最高薪資、最低薪資
+       - 按部門分組並排序
+       - 保存查詢
+
+    2. 設計 BI Publisher 報表：
+       - 導航至「報表工具」>「BI Publisher」>「報表定義」
+       - 創建新報表定義「部門薪資分析」
+       - 數據源選擇剛創建的PS/Query
+       - 設計報表佈局：
+         * 創建標題部分，包含報表名稱、運行日期和頁碼
+         * 創建部門摘要部分，顯示部門統計信息
+         * 創建員工詳情部分，顯示每個員工的薪資信息
+         * 添加圖表：部門平均薪資比較柱狀圖
+       - 設置格式和樣式
+       - 創建PDF和Excel輸出格式
+
+    3. 配置報表安全性和訪問權限
+
+    4. 設置報表分發：
+       - 導航至「報表工具」>「BI Publisher」>「報表分發」
+       - 創建分發規則：
+         * 設置接收者：部門經理和HR經理
+         * 設置分發方式：電子郵件附件
+         * 設置分發條件：每月第一天自動運行
+         * 設置郵件模板，包含報表摘要和重要發現
+
+    5. 測試報表：
+       - 運行報表並檢查輸出格式
+       - 驗證數據準確性和計算結果
+       - 測試分發功能
+    ```
 
 ## 高級教學
 
@@ -738,11 +915,258 @@ PeopleSoft 提供了多種與其他系統集成的方法：
     - 解決方案：重構 SQL、優化索引和調整緩存
     - 結果：系統響應時間提高 70%
 
+   **範例**：優化員工搜索功能
+    ```
+    初始情況：
+    - 員工搜索頁面加載時間超過 30 秒
+    - 用戶報告系統在高峰時段經常超時
+    - 數據庫 CPU 使用率在搜索操作期間達到 95%
+
+    診斷步驟：
+    1. 啟用 SQL 跟踪和性能監視器
+       - 設置 PSAPPSRV.cfg 中的 TraceSQL 參數為 31
+       - 啟用 PeopleSoft 性能監視器
+       - 執行多次搜索操作，收集跟踪數據
+
+    2. 分析跟踪結果
+       - 識別耗時最長的 SQL 語句：
+         ```sql
+         SELECT A.EMPLID, A.NAME, A.DEPTID, B.JOBTITLE, C.MANAGER_ID
+         FROM PS_PERSONAL_DATA A, PS_JOB B, PS_DEPT_TBL C
+         WHERE A.EMPLID = B.EMPLID
+         AND B.DEPTID = C.DEPTID
+         AND B.EFFDT = (SELECT MAX(B1.EFFDT) FROM PS_JOB B1
+                        WHERE B1.EMPLID = B.EMPLID
+                        AND B1.EFFDT <= SYSDATE)
+         AND B.EFFSEQ = (SELECT MAX(B2.EFFSEQ) FROM PS_JOB B2
+                         WHERE B2.EMPLID = B.EMPLID
+                         AND B2.EFFDT = B.EFFDT)
+         AND A.NAME LIKE '%' || :1 || '%'
+         ORDER BY A.NAME
+         ```
+       - 發現問題：
+         * 子查詢效率低下
+         * NAME 欄位沒有適當的索引
+         * 大量數據被傳輸但只顯示少量記錄
+         * 緩存配置不當
+
+    3. 檢查索引和表統計信息
+       - 使用 Oracle 數據庫管理工具分析執行計劃
+       - 發現 PS_PERSONAL_DATA.NAME 欄位沒有索引
+       - PS_JOB 表的統計信息過期
+       - 表空間碎片化嚴重
+
+    4. 檢查應用服務器配置
+       - Jolt 連接池設置過小（最大連接數 = 50）
+       - 緩存大小不足
+       - 未啟用結果集緩存
+
+    優化措施：
+    1. 數據庫優化
+       - 創建新索引：
+         ```sql
+         CREATE INDEX PS_PERSONAL_DATA_NAME ON PS_PERSONAL_DATA(NAME) TABLESPACE PSINDEX;
+         ```
+       - 更新表統計信息：
+         ```sql
+         EXEC DBMS_STATS.GATHER_TABLE_STATS('SYSADM', 'PS_PERSONAL_DATA');
+         EXEC DBMS_STATS.GATHER_TABLE_STATS('SYSADM', 'PS_JOB');
+         EXEC DBMS_STATS.GATHER_TABLE_STATS('SYSADM', 'PS_DEPT_TBL');
+         ```
+       - 重組碎片化的表空間
+
+    2. SQL 優化
+       - 重寫搜索查詢，使用有效日期表達式：
+         ```sql
+         SELECT A.EMPLID, A.NAME, A.DEPTID, B.JOBTITLE, C.MANAGER_ID
+         FROM PS_PERSONAL_DATA A
+         JOIN (SELECT EMPLID, DEPTID, JOBTITLE
+               FROM PS_JOB
+               WHERE (EMPLID, EFFDT, EFFSEQ) IN 
+                     (SELECT EMPLID, MAX(EFFDT), MAX(EFFSEQ)
+                      FROM PS_JOB
+                      WHERE EFFDT <= SYSDATE
+                      GROUP BY EMPLID)) B ON A.EMPLID = B.EMPLID
+         JOIN PS_DEPT_TBL C ON B.DEPTID = C.DEPTID
+         WHERE A.NAME LIKE '%' || :1 || '%'
+         ORDER BY A.NAME
+         ```
+       - 添加分頁處理，限制返回記錄數：
+         ```sql
+         SELECT * FROM (
+           SELECT A.*, ROWNUM AS RNUM
+           FROM (
+             -- 優化後的查詢
+           ) A
+           WHERE ROWNUM <= :2
+         ) WHERE RNUM >= :3
+         ```
+
+    3. 應用服務器優化
+       - 增加 Jolt 連接池大小至 150
+       - 調整 PSAPPSRV.cfg 中的緩存設置：
+         ```
+         [PSAPPSRV]
+         CACHESIZE=256000
+         ANALYTIC_INSTANCE_POOL_SIZE=8
+         ```
+       - 啟用結果集緩存：
+         ```
+         [PSAPPSRV]
+         EnableResultSet=1
+         ResultSetMaxCacheSize=10000
+         ```
+
+    4. 前端優化
+       - 實施延遲加載技術
+       - 添加搜索條件驗證，要求至少一個搜索條件
+       - 限制初始結果集大小為 100 條記錄
+
+    結果：
+    - 搜索頁面加載時間從 30 秒減少到 3 秒（提升 90%）
+    - 數據庫 CPU 使用率降至 40%
+    - 系統可以同時處理的用戶數量增加了 3 倍
+    - 用戶滿意度顯著提高
+    ```
+
 2. **集成挑戰案例**：
     - 問題：與外部系統的實時集成失敗
     - 分析：識別消息格式和超時問題
     - 解決方案：實施消息隊列和重試機制
     - 結果：集成可靠性提高到 99.9%
+
+   **範例**：實現與 SAP 財務系統的可靠集成
+    ```
+    初始情況：
+    - PeopleSoft HR 系統需要實時將員工薪資數據發送到 SAP 財務系統
+    - 現有的直接 Web 服務調用方法失敗率高達 30%
+    - 失敗原因包括網絡超時、SAP 系統負載高峰和消息格式錯誤
+    - 失敗的交易沒有自動恢復機制，需要手動干預
+
+    診斷步驟：
+    1. 分析失敗模式
+       - 收集兩週的集成錯誤日誌
+       - 分類失敗類型：
+         * 網絡超時：45%
+         * SAP 系統拒絕連接：30%
+         * 消息格式錯誤：15%
+         * 數據驗證失敗：10%
+       - 發現高峰時段（每天上午 9-11 點和月末）失敗率更高
+
+    2. 檢查現有集成架構
+       - 直接同步 Web 服務調用
+       - 無消息持久化
+       - 簡單的重試邏輯（僅重試 3 次，間隔 5 秒）
+       - 錯誤處理不完善
+
+    3. 分析 SAP 系統 API 要求
+       - 檢查 SAP 文檔和 API 規範
+       - 識別必填字段和格式要求
+       - 了解 SAP 系統的處理能力和限制
+
+    解決方案：
+    1. 實施消息隊列架構
+       - 部署 Oracle Advanced Queuing 作為消息中間件
+       - 創建以下隊列：
+         * HR_TO_SAP_REQUEST：發送到 SAP 的請求
+         * SAP_TO_HR_RESPONSE：來自 SAP 的響應
+         * HR_TO_SAP_ERROR：處理失敗的消息
+       - 配置隊列參數：
+         ```
+         BEGIN
+           DBMS_AQADM.CREATE_QUEUE_TABLE(
+             queue_table => 'HR_TO_SAP_QUEUE_TABLE',
+             queue_payload_type => 'SYS.XMLType',
+             sort_list => 'PRIORITY,ENQ_TIME',
+             compatible => '10.0'
+           );
+
+           DBMS_AQADM.CREATE_QUEUE(
+             queue_name => 'HR_TO_SAP_REQUEST',
+             queue_table => 'HR_TO_SAP_QUEUE_TABLE',
+             retention_time => 604800  -- 7 days
+           );
+
+           DBMS_AQADM.START_QUEUE(
+             queue_name => 'HR_TO_SAP_REQUEST'
+           );
+         END;
+         ```
+
+    2. 開發集成服務
+       - 創建 PeopleSoft 應用類處理消息發送和接收：
+         ```java
+         import SYS.XMLType;
+         import DBMS_AQ.*;
+
+         class SAP_Integration extends PT_MCF_MAIL:Mail
+            method sendToSAP(&xmlData As string, &priority As number) Returns boolean;
+            method processResponses() Returns number;
+            method handleError(&msgID As string, &errorCode As string, &errorMsg As string) Returns boolean;
+         end-class;
+
+         method sendToSAP
+            /+ &xmlData as String, +/
+            /+ &priority as Number +/
+            /+ Returns Boolean +/
+
+            Local JavaObject &enqueueOptions = CreateJavaObject("oracle.jms.AQjmsQueueSender");
+            Local JavaObject &message = CreateJavaObject("oracle.jms.AQjmsTextMessage");
+
+            &message.setText(&xmlData);
+            &message.setIntProperty("priority", &priority);
+            &message.setStringProperty("source", "PSFT_HR");
+
+            try
+               &enqueueOptions.send(&message);
+               Return True;
+            catch Exception &e
+               WriteToLog(0, "Error sending message to SAP: " | &e.ToString());
+               Return False;
+            end-try;
+         end-method;
+         ```
+
+    3. 實施智能重試機制
+       - 創建錯誤處理服務，根據錯誤類型實施不同的重試策略：
+         * 網絡超時：指數退避重試（1分鐘、5分鐘、15分鐘、30分鐘）
+         * SAP 系統拒絕：安排在非高峰時段重試
+         * 消息格式錯誤：修正格式後重試
+         * 數據驗證失敗：通知管理員手動處理
+       - 實施死信隊列，處理多次失敗的消息
+
+    4. 開發監控和管理界面
+       - 創建隊列監控儀表板，顯示：
+         * 待處理消息數量
+         * 處理中消息數量
+         * 錯誤消息數量和類型
+         * 平均處理時間
+       - 實施警報機制，當錯誤率超過閾值時通知管理員
+       - 提供手動重新處理失敗消息的功能
+
+    5. 數據轉換和驗證增強
+       - 實施預驗證邏輯，在發送前檢查數據完整性
+       - 創建 XML Schema 驗證消息格式
+       - 開發數據映射服務，確保 PeopleSoft 數據正確轉換為 SAP 格式
+
+    部署和測試：
+    1. 分階段部署
+       - 首先在測試環境部署並進行全面測試
+       - 在非工作時間部署到生產環境
+       - 初期並行運行新舊系統，比較結果
+
+    2. 負載和故障測試
+       - 模擬高峰負載條件
+       - 注入各種故障場景（網絡中斷、SAP 系統不可用等）
+       - 驗證恢復機制和數據一致性
+
+    結果：
+    - 集成可靠性從 70% 提高到 99.9%
+    - 所有失敗的交易都能自動恢復，無需手動干預
+    - 系統能夠處理高峰期負載，無性能下降
+    - 實時監控提供了集成健康狀況的可見性
+    - 運營成本降低 60%（減少了手動干預和錯誤修復）
+    ```
 
 3. **升級複雜性案例**：
     - 問題：具有大量自定義的系統升級
@@ -750,8 +1174,373 @@ PeopleSoft 提供了多種與其他系統集成的方法：
     - 解決方案：重構關鍵自定義並實施分階段升級
     - 結果：成功升級，最小化業務中斷
 
+   **範例**：從 PeopleSoft HCM 9.1 升級到 9.2
+    ```
+    初始情況：
+    - 現有系統：PeopleSoft HCM 9.1 PUM Update Image 5
+    - 目標系統：PeopleSoft HCM 9.2 PUM Update Image 22
+    - 系統包含超過 5,000 個自定義對象
+    - 關鍵業務流程高度自定義，包括：
+      * 自定義招聘流程
+      * 修改的績效評估系統
+      * 自定義薪資計算規則
+      * 與多個內部系統的集成
+    - 系統每天支持 3,000 名用戶，停機時間必須最小化
+
+    評估階段：
+    1. 自定義影響分析
+       - 使用 PeopleSoft 環境管理框架 (EMF) 生成自定義對象報告
+       - 分類自定義對象：
+         * 高風險（直接修改 Oracle 對象）：1,200 個
+         * 中風險（使用 Oracle 對象但通過適當方法）：2,300 個
+         * 低風險（完全自定義對象）：1,500 個
+       - 識別關鍵業務流程的依賴關係
+
+    2. 升級影響評估
+       - 分析 9.2 版本中的新功能和變更
+       - 識別可能替代自定義的新標準功能
+       - 評估數據模型變更的影響
+       - 估算升級工作量和時間線
+
+    3. 技術環境評估
+       - 評估硬件和基礎設施需求
+       - 檢查數據庫兼容性
+       - 評估第三方集成影響
+       - 確定測試環境需求
+
+    規劃階段：
+    1. 升級策略制定
+       - 決定採用分階段升級方法：
+         * 第 1 階段：技術升級（基礎設施和平台）
+         * 第 2 階段：功能升級（應用和自定義）
+         * 第 3 階段：新功能實施
+       - 制定詳細的項目計劃和時間線
+       - 分配資源和責任
+
+    2. 自定義處理策略
+       - 對於高風險自定義：
+         * 評估是否可以使用 9.2 標準功能替代
+         * 如果必須保留，重構為使用事件映射或其他支持的方法
+       - 對於中風險自定義：
+         * 評估兼容性並計劃必要的調整
+         * 優化代碼以提高性能和可維護性
+       - 對於低風險自定義：
+         * 確保命名約定符合標準
+         * 更新文檔和測試案例
+
+    3. 測試策略
+       - 設計多層測試方法：
+         * 單元測試：驗證單個對象和功能
+         * 集成測試：驗證系統間交互
+         * 系統測試：驗證端到端業務流程
+         * 性能測試：驗證系統在負載下的表現
+         * 用戶驗收測試：由業務用戶驗證功能
+       - 創建自動化測試腳本，覆蓋關鍵業務流程
+       - 設計數據遷移測試計劃
+
+    執行階段：
+    1. 環境準備
+       - 設置升級實例和開發環境
+       - 安裝必要的工具和補丁
+       - 準備測試數據集
+
+    2. 技術升級（第 1 階段）
+       - 升級數據庫到 Oracle 19c
+       - 升級 PeopleTools 到 8.58
+       - 更新操作系統和中間件
+       - 執行基礎設施測試
+
+    3. 自定義重構（關鍵部分）
+       - 重構招聘流程自定義：
+         * 將直接修改的 Oracle 對象轉換為事件映射
+         * 示例代碼轉換：
+           ```
+           /* 舊代碼（直接修改 Oracle 對象） */
+           Component RECRUIT_APPLICANT
+              /* Oracle 提供的欄位 */
+              Field EMPLID
+              Field NAME
+              Field EMAIL
+
+              /* 自定義欄位（直接添加到 Oracle 組件） */
+              Field Z_REFER_SOURCE
+              Field Z_SKILL_LEVEL
+              Field Z_PREV_EMPLOYER
+           End-Component
+
+           /* 新代碼（使用事件映射和自定義組件） */
+           /* 1. 創建自定義組件 */
+           Component Z_RECRUIT_CUSTOM
+              Field Z_REFER_SOURCE
+              Field Z_SKILL_LEVEL
+              Field Z_PREV_EMPLOYER
+              Field EMPLID  /* 關聯鍵 */
+           End-Component
+
+           /* 2. 使用事件映射連接標準組件和自定義組件 */
+           import PT_RCF:ServiceInterface;
+
+           class Z_RecruitEventHandler implements PT_RCF:ServiceInterface
+              method execute(&_MSG As Message) Returns Message;
+           end-class;
+
+           method execute
+              /+ &_MSG as Message +/
+              /+ Returns Message +/
+
+              Local Message &response = CreateMessage(Operation.Z_RECRUIT_RESP);
+              Local string &emplid = &_MSG.GetRowset().GetRow(1).GetRecord(Record.RECRUIT_APPLICANT).GetField(Field.EMPLID).Value;
+
+              /* 加載自定義數據 */
+              SQLExec("SELECT Z_REFER_SOURCE, Z_SKILL_LEVEL, Z_PREV_EMPLOYER FROM PS_Z_RECRUIT_CUSTOM WHERE EMPLID = :1", &emplid, &referSource, &skillLevel, &prevEmployer);
+
+              /* 設置響應數據 */
+              &response.GetRowset().GetRow(1).GetRecord(Record.Z_RECRUIT_RESP).GetField(Field.Z_REFER_SOURCE).Value = &referSource;
+              &response.GetRowset().GetRow(1).GetRecord(Record.Z_RECRUIT_RESP).GetField(Field.Z_SKILL_LEVEL).Value = &skillLevel;
+              &response.GetRowset().GetRow(1).GetRecord(Record.Z_RECRUIT_RESP).GetField(Field.Z_PREV_EMPLOYER).Value = &prevEmployer;
+
+              Return &response;
+           end-method;
+           ```
+
+    4. 功能升級（第 2 階段）
+       - 安裝 HCM 9.2 應用
+       - 遷移重構後的自定義
+       - 配置和參數化系統
+       - 執行數據轉換和驗證
+
+    5. 全面測試
+       - 執行所有層次的測試
+       - 修復發現的問題
+       - 進行性能調優
+       - 完成用戶驗收測試
+
+    6. 上線準備
+       - 制定詳細的上線計劃
+       - 準備回退策略
+       - 培訓最終用戶和支持團隊
+       - 進行模擬上線演練
+
+    上線階段：
+    1. 系統切換
+       - 在週末執行最終數據遷移
+       - 部署應用和自定義
+       - 執行系統驗證檢查
+       - 啟用新系統
+
+    2. 上線支持
+       - 實施「追蹤團隊」解決緊急問題
+       - 監控系統性能和穩定性
+       - 提供實時用戶支持
+
+    3. 穩定期管理
+       - 解決發現的問題
+       - 微調系統配置
+       - 收集用戶反饋
+
+    結果：
+    - 成功將系統升級到 PeopleSoft HCM 9.2
+    - 保留了所有關鍵業務功能，同時提高了系統穩定性
+    - 重構的自定義更易於維護，並與 Oracle 升級路徑兼容
+    - 系統停機時間僅為計劃的 36 小時（比預計少 12 小時）
+    - 升級後系統性能提升 25%
+    - 用戶滿意度達到 92%
+    ```
+
 4. **安全加固案例**：
     - 問題：系統存在安全漏洞和合規問題
     - 分析：執行安全審計和風險評估
     - 解決方案：實施多層安全控制和監控
     - 結果：通過安全審計並提高系統安全性
+
+   **範例**：PeopleSoft 系統安全加固項目
+    ```
+    初始情況：
+    - 安全審計發現多個高風險漏洞
+    - 系統不符合行業安全標準（如 PCI DSS、GDPR）
+    - 存在的主要問題：
+      * 弱密碼策略和密碼存儲
+      * 缺乏多因素認證
+      * 過度權限分配
+      * 敏感數據未加密
+      * 缺乏審計跟踪
+      * 應用層漏洞（SQL 注入、XSS）
+    - 需要在 3 個月內解決所有高風險問題
+
+    評估階段：
+    1. 全面安全評估
+       - 執行滲透測試和漏洞掃描
+       - 審查代碼和配置
+       - 評估權限和訪問控制
+       - 檢查數據保護措施
+       - 審查監控和日誌記錄
+
+    2. 風險評估和優先級排序
+       - 識別 15 個高風險問題
+       - 識別 23 個中風險問題
+       - 識別 18 個低風險問題
+       - 根據風險和影響確定修復優先級
+
+    3. 合規差距分析
+       - 與 PCI DSS 要求的差距：12 項
+       - 與 GDPR 要求的差距：8 項
+       - 與內部安全策略的差距：17 項
+
+    解決方案實施：
+    1. 身份認證加強
+       - 實施強密碼策略：
+         ```
+         /* 在 PSOPTIONS 表中設置密碼策略 */
+         UPDATE PSOPTIONS SET 
+           PSWD_COMPLEXITY = 15,    /* 要求大小寫字母、數字和特殊字符 */
+           PSWD_LENGTH = 12,        /* 最小長度 12 字符 */
+           PSWD_EXPIRATION = 90,    /* 90 天過期 */
+           PSWD_HISTORY = 12        /* 記住 12 個以前的密碼 */
+         ;
+         ```
+       - 實施多因素認證：
+         * 部署 Oracle Mobile Authenticator
+         * 配置 PeopleSoft 使用 OATH TOTP
+         * 為所有特權用戶和敏感功能啟用 MFA
+       - 實施帳戶鎖定策略：
+         ```
+         /* 在 PSOPTIONS 表中設置帳戶鎖定策略 */
+         UPDATE PSOPTIONS SET 
+           ACCT_LOCK_COUNT = 5,     /* 5 次失敗嘗試後鎖定 */
+           ACCT_LOCK_TIME = 30      /* 鎖定 30 分鐘 */
+         ;
+         ```
+
+    2. 訪問控制優化
+       - 實施最小權限原則：
+         * 審查所有權限列表和角色
+         * 移除過度權限
+         * 創建更細粒度的權限列表
+       - 實施職責分離：
+         * 識別衝突的職責
+         * 重新設計角色以防止權限衝突
+         * 實施動態角色分配
+       - 實施特權訪問管理：
+         * 為管理員創建臨時提升權限流程
+         * 實施特權會話記錄
+         * 設置特權帳戶審批工作流程
+
+    3. 數據保護增強
+       - 實施數據加密：
+         * 配置 TLS 1.3 用於所有網絡通信
+         * 實施數據庫級別的透明數據加密 (TDE)
+         * 加密敏感欄位（如社會安全號碼、信用卡信息）
+         * 實施 PeopleSoft 加密配置文件：
+           ```
+           /* 在 PSCIPHER 表中設置加密配置 */
+           INSERT INTO PSCIPHER (
+             CIPHERNAME, SYMBOLICID, ALGORITHMID, KEYLEN, 
+             MAXLEN, BLOCKSZ, CIPHERTYPE, VERSION, 
+             OPRCLASS, ENTRYDATE, LASTUPDDTTM
+           ) VALUES (
+             'AES256', 'SYSTEM', 2, 256, 
+             0, 16, 1, 1, 
+             'PTPT1200', SYSDATE, SYSDATE
+           );
+           ```
+       - 實施數據脫敏：
+         * 為非生產環境創建數據脫敏規則
+         * 使用 PeopleSoft 數據屏蔽功能保護敏感數據
+         * 為開發和測試環境實施動態數據脫敏
+
+    4. 應用安全加固
+       - 修復 SQL 注入漏洞：
+         * 審查並修改所有動態 SQL 語句
+         * 實施參數化查詢
+         * 示例修復：
+           ```
+           /* 不安全的代碼 */
+           &sql = "SELECT * FROM PS_EMPLOYEE WHERE EMPLID = '" | &emplid | "'";
+           SQLExec(&sql, &result);
+
+           /* 安全的代碼 */
+           SQLExec("SELECT * FROM PS_EMPLOYEE WHERE EMPLID = :1", &emplid, &result);
+           ```
+       - 修復跨站腳本 (XSS) 漏洞：
+         * 實施輸入驗證和輸出編碼
+         * 添加內容安全策略 (CSP) 頭
+         * 使用 PeopleCode 轉義函數處理用戶輸入
+       - 實施安全頭和 Cookie 設置：
+         * 配置 web.xml 添加安全頭：
+           ```xml
+           <filter>
+             <filter-name>SecurityHeaders</filter-name>
+             <filter-class>com.security.filters.SecurityHeaderFilter</filter-class>
+             <init-param>
+               <param-name>X-XSS-Protection</param-name>
+               <param-value>1; mode=block</param-value>
+             </init-param>
+             <init-param>
+               <param-name>X-Content-Type-Options</param-name>
+               <param-value>nosniff</param-value>
+             </init-param>
+             <init-param>
+               <param-name>X-Frame-Options</param-name>
+               <param-value>SAMEORIGIN</param-value>
+             </init-param>
+           </filter>
+           ```
+
+    5. 審計和監控增強
+       - 實施全面審計：
+         * 配置 PeopleSoft 審計功能記錄關鍵操作
+         * 設置敏感數據訪問審計
+         * 配置審計記錄保留策略
+       - 部署安全信息和事件管理 (SIEM) 系統：
+         * 將 PeopleSoft 日誌集成到企業 SIEM
+         * 創建安全事件關聯規則
+         * 設置異常檢測和警報
+       - 實施實時監控：
+         * 監控異常登入活動
+         * 檢測權限提升嘗試
+         * 監控敏感數據訪問模式
+
+    6. 安全治理和流程
+       - 實施變更管理流程：
+         * 所有安全相關變更需要安全團隊審查
+         * 實施代碼安全審查流程
+         * 建立安全補丁管理流程
+       - 制定安全事件響應計劃：
+         * 定義角色和責任
+         * 建立事件分類和升級流程
+         * 準備取證和恢復程序
+       - 安全意識培訓：
+         * 為開發團隊提供安全編碼培訓
+         * 為管理員提供安全配置培訓
+         * 為所有用戶提供安全意識培訓
+
+    測試和驗證：
+    1. 安全測試
+       - 執行滲透測試：
+         * 外部安全公司執行黑盒測試
+         * 內部團隊執行白盒測試
+         * 修復發現的所有問題
+       - 執行漏洞掃描：
+         * 使用多種工具掃描應用和基礎設施
+         * 優先修復高風險漏洞
+       - 執行配置審查：
+         * 驗證所有安全設置
+         * 檢查是否有安全配置偏差
+
+    2. 合規驗證
+       - 執行 PCI DSS 合規檢查：
+         * 驗證所有 12 個要求領域
+         * 修復任何不合規項
+       - 執行 GDPR 合規檢查：
+         * 驗證數據保護措施
+         * 確保數據主體權利得到支持
+       - 執行內部安全策略合規檢查
+
+    結果：
+    - 所有高風險漏洞在 2 個月內修復（比計劃提前 1 個月）
+    - 系統通過 PCI DSS 和 GDPR 合規審計
+    - 安全事件減少 95%
+    - 系統安全評級從「高風險」提升到「低風險」
+    - 建立了持續的安全監控和改進流程
+    - 用戶對系統安全性的信心顯著提高
+    ```
